@@ -164,20 +164,43 @@ async function pushWechat({ token, title, content, template = 'html', channel = 
   const baseTitle = title || 'SIGNAL ARCADE 情报简报';
 
   // 提取外层 header / footer（<section> 之外的固定内容），保证每条消息都有标题和免责声明
-  const headerMatch = content.match(/^([\s\S]*?)(?=<section\b)/i);
-  const footerMatch = content.match(/(<(?:hr|p)\b[\s\S]*?)(?:<\/body><\/html>)?\s*$/i);
-  const header = headerMatch ? headerMatch[1] : '';
-  const footer = footerMatch ? footerMatch[1] : '';
-  // 去掉 header/footer 后只保留 sections
-  let bodyOnly = content;
-  if (header) bodyOnly = bodyOnly.slice(header.length);
-  if (footer && bodyOnly.endsWith(footer)) bodyOnly = bodyOnly.slice(0, -footer.length);
+  // 使用 firstSection / lastSectionEnd 精确定位，避免原 footer 正则把时间戳段误判为 footer
+  let header = '', footer = '', bodyOnly = content;
+  const firstSectionIdx = content.search(/<section\b/i);
+  const lastSectionEndIdx = content.toLowerCase().lastIndexOf('</section>');
+  if (firstSectionIdx !== -1 && lastSectionEndIdx !== -1 && lastSectionEndIdx > firstSectionIdx) {
+    header = content.slice(0, firstSectionIdx);
+    footer = content.slice(lastSectionEndIdx + '</section>'.length);
+    bodyOnly = content.slice(firstSectionIdx, lastSectionEndIdx + '</section>'.length);
+  } else if (firstSectionIdx !== -1) {
+    header = content.slice(0, firstSectionIdx);
+    bodyOnly = content.slice(firstSectionIdx);
+    footer = '';
+  } else {
+    // 没有 <section>：把整段当作一个块，后续会按字节硬切
+    header = '';
+    footer = '';
+    bodyOnly = content;
+  }
 
   // 如果 header+footer 本身就已经把额度占满，直接整段切（兜底）
   const overhead = Buffer.byteLength(header + footer, 'utf8');
-  const chunks = overhead > PUSHPLUS_MAX_CHARS
+  let chunks = overhead > PUSHPLUS_MAX_CHARS
     ? splitHtmlBySections(content, PUSHPLUS_MAX_CHARS)
     : splitHtmlBySections(bodyOnly, PUSHPLUS_MAX_CHARS - overhead);
+  // 兜底：没有任何 section（或 bodyOnly 为空但 header/footer 合起来就是内容）
+  if (!chunks.length) {
+    const fallback = (header + bodyOnly + footer) || content;
+    chunks = splitHtmlBySections(fallback, PUSHPLUS_MAX_CHARS);
+    // 仍为空（极短内容）：直接单条发送
+    if (!chunks.length) chunks = [fallback];
+    // 已做回退则后续拼装不需要重复加 header/footer
+    if (header || footer) {
+      // chunks 已包含完整内容，避免重复拼接
+      header = '';
+      footer = '';
+    }
+  }
 
   const results = [];
   const total = chunks.length;
@@ -190,7 +213,7 @@ async function pushWechat({ token, title, content, template = 'html', channel = 
     try {
       const r = await fetch('https://www.pushplus.plus/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+        headers: { 'Content-Type': 'application/json' },
         body: payload,
         signal: controller.signal
       });
@@ -202,6 +225,9 @@ async function pushWechat({ token, title, content, template = 'html', channel = 
       if (data.code !== 200) break;
       // 多条之间稍作间隔，避免触发频率限制
       if (i < total - 1) await new Promise(r => setTimeout(r, 800));
+    } catch (err) {
+      results.push({ part: i + 1, total, title: partTitle, chars: Buffer.byteLength(partContent, 'utf8'), httpStatus: 0, code: err.code || 0, msg: err.message, error: err.message });
+      break;
     } finally {
       clearTimeout(timer);
     }
