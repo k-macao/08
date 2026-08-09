@@ -66,3 +66,9 @@ PushPlus 单条消息内容上限约 10 万字。本项目在 `server.js` 和 CI
 - 语法检查
 - 服务器启动验证
 - GitHub Actions 工作流触发测试
+
+## ci.yml.new 说明
+
+GitHub 机器人没有 `workflows` 权限，无法直接修改 `.github/workflows/ci.yml`。
+需要更新工作流时：打开 GitHub 网页编辑器，把 `ci.yml.new` 的内容整体复制到 `.github/workflows/ci.yml` 并提交即可。
+
