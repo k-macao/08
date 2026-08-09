@@ -6,33 +6,166 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      channels:
+        description: '要扫描的频道，多个用 | 分隔，留空使用默认 4 个'
+        required: false
+        default: ''
+        type: string
+      push_to_wechat:
+        description: '扫描完成后自动推送到微信（PushPlus）'
+        required: false
+        default: false
+        type: boolean
+      pushplus_token:
+        description: '临时 PushPlus token（优先于 Secrets.PUSHPLUS_TOKEN）'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [18, 20]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-
       - name: Install dependencies
         run: npm install
-
       - name: Verify server starts
         run: |
           timeout 10 node server.js &
           sleep 3
           curl -f http://localhost:3000 || exit 1
           kill %1 || true
-
       - name: Check syntax
         run: node --check server.js && node --check app.js
+
+  scan-and-push:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.push_to_wechat }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+
+      - name: Scan and push to WeChat
+        env:
+          PUSHPLUS_TOKEN: ${{ inputs.pushplus_token != '' && inputs.pushplus_token || secrets.PUSHPLUS_TOKEN }}
+          CHANNELS_INPUT: ${{ inputs.channels }}
+        run: |
+          if [ -z "$PUSHPLUS_TOKEN" ]; then
+            echo "::error::缺少 PushPlus token：请在 workflow_dispatch 填 pushplus_token 或在仓库 Secrets 配置 PUSHPLUS_TOKEN"
+            exit 1
+          fi
+          # 启动本地 server
+          PORT=3000 node server.js &
+          SERVER_PID=$!
+          sleep 3
+          curl -f http://localhost:3000 || { echo "server 未启动"; kill $SERVER_PID; exit 1; }
+
+          # 解析频道：支持 | 、, 、换行 分隔
+          if [ -z "$CHANNELS_INPUT" ]; then
+            CHANNELS_JSON='["信報財經新聞","Finance730","香港經濟日報 HKET","香港財經時報 HKBT"]'
+          else
+            CHANNELS_JSON=$(node -e "
+              const raw = process.env.CHANNELS_INPUT || '';
+              const arr = raw.split(/[|\n,]+/).map(s=>s.trim()).filter(Boolean).slice(0,12);
+              console.log(JSON.stringify(arr));
+            ")
+          fi
+          echo "Channels: $CHANNELS_JSON"
+
+          # 调用本地 /api/scan
+          SCAN_RESP=$(curl -s -X POST http://localhost:3000/api/scan -H 'Content-Type: application/json' -d "{\"channels\": $CHANNELS_JSON}")
+          echo "$SCAN_RESP" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);if(!j.items) throw Error('no items'); console.log('扫描到', j.items.length, '条');}catch(e){console.error('扫描结果解析失败',e.message, d); process.exit(1)}})"
+          echo "$SCAN_RESP" > scan_result.json
+
+          # 生成 HTML 并按 server.js 同款逻辑分条推送到 PushPlus
+          node << 'NODE'
+          import fs from 'node:fs';
+          const scan = JSON.parse(fs.readFileSync('scan_result.json','utf8'));
+          const items = scan.items || [];
+
+          const esc = s => String(s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+          const sections = items.map((x,i)=> x.error
+            ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
+            : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
+          ).join('');
+          const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">SIGNAL ARCADE · 财经情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+          const title = `SIGNAL ARCADE 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+          fs.writeFileSync('brief.html', content);
+
+          // 复用 server.js 的分段逻辑（简化同步）
+          const PUSHPLUS_MAX_CHARS = 90000;
+          function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
+            const parts=[]; const sections = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
+            const flush=()=>{ if(buf.trim()){ parts.push(buf); buf=''; } };
+            const splitOversizedSection=(sec,max)=>{
+              const out=[]; const headMatch=sec.match(/^<section\b[^>]*>/i); const head=headMatch?headMatch[0]:'<section>'; const tailMatch=sec.match(/<\/section>\s*$/i); const tail=tailMatch?tailMatch[0]:'</section>'; const headEnd=headMatch?headMatch[0].length:9; const inner=sec.slice(headEnd, sec.length-tail.length); const pieceBudget=max-Buffer.byteLength(head+tail,'utf8');
+              if(pieceBudget<=0){ let s=sec; while(Buffer.byteLength(s,'utf8')>max){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=max) lo=mid; else hi=mid-1;} out.push(s.slice(0,lo)); s=s.slice(lo);} if(s) out.push(s); return out; }
+              const chunks=inner.split(/(?=<\/p>|<p\b|<br\s*\/?>|。)/i); let cur='';
+              for(const c of chunks){ if(Buffer.byteLength(c,'utf8')>pieceBudget){ if(cur){ out.push(head+cur+tail); cur=''; } let s=c; while(Buffer.byteLength(s,'utf8')>pieceBudget){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=pieceBudget) lo=mid; else hi=mid-1;} let cut=lo; const win=s.slice(Math.max(0,lo-200),lo); const m=win.match(/[。！？\n]/g); if(m) cut=lo-200+win.lastIndexOf(m[m.length-1])+1; out.push(head+s.slice(0,cut)+tail); s=s.slice(cut);} if(s) cur=s; } else if(Buffer.byteLength(cur+c,'utf8')>pieceBudget && cur){ out.push(head+cur+tail); cur=c; } else cur+=c; } if(cur) out.push(head+cur+tail); return out;
+            };
+            for(const sec of sections){ if(Buffer.byteLength(sec,'utf8')>maxChars){ flush(); for(const p of splitOversizedSection(sec,maxChars)) parts.push(p); continue; } if(Buffer.byteLength(buf+sec,'utf8')>maxChars) flush(); buf+=sec; } flush(); return parts;
+          }
+
+          let header='', footer='', bodyOnly=content;
+          const firstIdx=content.search(/<section\b/i); const lastEnd=content.toLowerCase().lastIndexOf('</section>');
+          if(firstIdx!==-1 && lastEnd!==-1 && lastEnd>firstIdx){ header=content.slice(0,firstIdx); footer=content.slice(lastEnd+'</section>'.length); bodyOnly=content.slice(firstIdx,lastEnd+'</section>'.length); }
+          else if(firstIdx!==-1){ header=content.slice(0,firstIdx); bodyOnly=content.slice(firstIdx); footer=''; }
+          const overhead=Buffer.byteLength(header+footer,'utf8');
+          let chunks= overhead>90000 ? splitHtmlBySections(content,90000) : splitHtmlBySections(bodyOnly, 90000-overhead);
+          if(!chunks.length){ const fb=(header+bodyOnly+footer)||content; chunks=splitHtmlBySections(fb,90000); if(!chunks.length) chunks=[fb]; if(header||footer){header=''; footer='';} }
+          console.log(`内容 ${Buffer.byteLength(content,'utf8')} 字节，分 ${chunks.length} 条发送`);
+          fs.writeFileSync('chunks.json', JSON.stringify({header, footer, chunks, title}, null, 2));
+
+          const token = process.env.PUSHPLUS_TOKEN;
+          let okCount=0;
+          for(let i=0;i<chunks.length;i++){
+            const partTitle = chunks.length>1 ? `${title} (${i+1}/${chunks.length})` : title;
+            const partContent = (header||footer) ? `${header}${chunks[i]}${footer}` : chunks[i];
+            const payload = JSON.stringify({ token, title: partTitle, content: partContent, template: 'html', channel: 'wechat' });
+            console.log(`推送 ${i+1}/${chunks.length}: ${partTitle} (${Buffer.byteLength(partContent,'utf8')} bytes)`);
+            let r, text, data;
+            try {
+              r = await fetch('https://www.pushplus.plus/send', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: payload });
+              text = await r.text();
+              try{ data=JSON.parse(text);}catch{ data={raw:text} }
+            } catch(e){
+              console.error(`第 ${i+1} 条网络异常:`, e.message);
+              process.exit(1);
+            }
+            console.log(`  -> HTTP ${r.status}`, JSON.stringify(data).slice(0,500));
+            if(data.code!==200){ console.error(`第 ${i+1} 条失败:`, data.msg||data.raw||JSON.stringify(data)); process.exit(1); }
+            okCount++;
+            if(i < chunks.length-1) await new Promise(r=>setTimeout(r,800));
+          }
+          console.log(`推送完成 ${okCount}/${chunks.length}`);
+          NODE
+
+          kill $SERVER_PID || true
+
+      - name: Upload brief artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-arcade-brief
+          path: |
+            scan_result.json
+            brief.html
+            chunks.json
