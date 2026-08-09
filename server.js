@@ -47,8 +47,10 @@ async function runFlows(token) {
   return { ok: r.ok, status: r.status };
 }
 async function scan(names) {
+ // 章鱼 AI 全景分析：扫描全部所选频道，不再限制 12 个。
+ // 频道逐个顺序抓取，避免对 YouTube 产生过高并发；每个频道最多 3 条视频。
  const results = [];
- for (const name of names.slice(0, 12)) {
+ for (const name of names) {
   try {
    const videos = await searchChannel(name);
    for (const video of videos) {
@@ -161,7 +163,7 @@ function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
 async function pushWechat({ token, title, content, template = 'html', channel = 'wechat' }) {
   if (!token) throw new Error('缺少 PushPlus token');
   if (!content) throw new Error('缺少推送内容');
-  const baseTitle = title || 'SIGNAL ARCADE 情报简报';
+  const baseTitle = title || '章鱼 AI 全景分析';
 
   // 提取外层 header / footer（<section> 之外的固定内容），保证每条消息都有标题和免责声明
   // 使用 firstSection / lastSectionEnd 精确定位，避免原 footer 正则把时间戳段误判为 footer
@@ -266,7 +268,7 @@ const server = http.createServer(async (req,res) => {
     if (!token) return json(res,400,{error:'缺少 PushPlus token（请传入 body.token 或在服务器配置 PUSHPLUS_TOKEN 环境变量）'});
     const out = await pushWechat({
       token,
-      title: body.title || 'SIGNAL ARCADE 情报简报',
+      title: body.title || '章鱼 AI 全景分析',
       content: body.content || '',
       template: body.template || 'html',
       channel: body.channel || 'wechat'
@@ -276,4 +278,4 @@ const server = http.createServer(async (req,res) => {
  }
  try { let file = u.pathname === '/' ? 'index.html' : u.pathname.slice(1); if (!/^(index\.html|app\.js|style\.css)$/.test(file)) throw Error(); const type=file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html';res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});res.end(await readFile(file)); } catch {res.writeHead(404);res.end('Not found');}
 });
-server.listen(PORT,'0.0.0.0',()=>console.log(`Signal Arcade on ${PORT}`));
+server.listen(PORT,'0.0.0.0',()=>console.log(`Octopus AI Panorama on ${PORT}`));
