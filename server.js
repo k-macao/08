@@ -61,33 +61,163 @@ async function scan(names) {
 }
 
 /**
+ * PushPlus 单条消息内容上限约 10 万字（100,000 字符）。
+ * 为留余量，按 90,000 字节切分。
+ */
+const PUSHPLUS_MAX_CHARS = 90000;
+
+/**
+ * 把一段 HTML 按 <section ...>...</section> 边界切分成多块，
+ * 每块不超过 maxChars 字节。若单个 section 自身超限，则按段落/句子再切。
+ * 返回 string[]，每个元素是一段可独立发送的 HTML 片段（不含 <html><body> 外壳）。
+ */
+function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
+  const parts = [];
+  const sections = html.split(/(?=<section\b)/i).filter(s => s.trim());
+  let buf = '';
+  const flush = () => { if (buf.trim()) { parts.push(buf); buf = ''; } };
+
+  // 把超长的单个 section 在内部按 </p>、<br>、句号等自然边界再切
+  const splitOversizedSection = (sec, max) => {
+    const out = [];
+    const headMatch = sec.match(/^<section\b[^>]*>/i);
+    const head = headMatch ? headMatch[0] : '<section>';
+    const tailMatch = sec.match(/<\/section>\s*$/i);
+    const tail = tailMatch ? tailMatch[0] : '</section>';
+    const headEnd = headMatch ? headMatch[0].length : 9;
+    const inner = sec.slice(headEnd, sec.length - tail.length);
+    const pieceBudget = max - Buffer.byteLength(head + tail, 'utf8');
+    if (pieceBudget <= 0) {
+      // head+tail 本身就超限（极端情况），硬切整个 sec
+      let s = sec;
+      while (Buffer.byteLength(s, 'utf8') > max) {
+        let lo = 0, hi = s.length;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1;
+          if (Buffer.byteLength(s.slice(0, mid), 'utf8') <= max) lo = mid; else hi = mid - 1;
+        }
+        out.push(s.slice(0, lo));
+        s = s.slice(lo);
+      }
+      if (s) out.push(s);
+      return out;
+    }
+    // 先按自然边界切成小块，再贪心打包
+    const chunks = inner.split(/(?=<\/p>|<p\b|<br\s*\/?>|。)/i);
+    let cur = '';
+    for (const c of chunks) {
+      if (Buffer.byteLength(c, 'utf8') > pieceBudget) {
+        // 单个 chunk 仍超限：先 flush 当前，再对 c 硬切
+        if (cur) { out.push(head + cur + tail); cur = ''; }
+        let s = c;
+        while (Buffer.byteLength(s, 'utf8') > pieceBudget) {
+          let lo = 0, hi = s.length;
+          while (lo < hi) {
+            const mid = (lo + hi + 1) >> 1;
+            if (Buffer.byteLength(s.slice(0, mid), 'utf8') <= pieceBudget) lo = mid; else hi = mid - 1;
+          }
+          // 尽量在最近的句号/换行处切
+          let cut = lo;
+          const win = s.slice(Math.max(0, lo - 200), lo);
+          const m = win.match(/[。！？\n]/g);
+          if (m) cut = lo - 200 + win.lastIndexOf(m[m.length - 1]) + 1;
+          out.push(head + s.slice(0, cut) + tail);
+          s = s.slice(cut);
+        }
+        if (s) cur = s;
+      } else if (Buffer.byteLength(cur + c, 'utf8') > pieceBudget && cur) {
+        out.push(head + cur + tail);
+        cur = c;
+      } else {
+        cur += c;
+      }
+    }
+    if (cur) out.push(head + cur + tail);
+    return out;
+  };
+
+  for (const sec of sections) {
+    if (Buffer.byteLength(sec, 'utf8') > maxChars) {
+      flush();
+      for (const piece of splitOversizedSection(sec, maxChars)) parts.push(piece);
+      continue;
+    }
+    if (Buffer.byteLength(buf + sec, 'utf8') > maxChars) flush();
+    buf += sec;
+  }
+  flush();
+  return parts;
+}
+
+/**
  * 推送消息到 PushPlus（微信公众号）。
  * 文档：https://www.pushplus.plus/push1.html
  * 关键点：
  *  1) 必须使用 HTTPS + JSON body（form-urlencoded 在新版接口下不稳定）
  *  2) 必须显式带 channel:"wechat"，否则可能走到用户默认渠道而非微信
  *  3) 调用是异步的，返回 code:200 只代表服务器已受理；真正投递结果以 shortCode 为准
+ *  4) 单条内容超过 10 万字会被拒绝，自动按 section 边界分多条发送，标题加 (1/N) 后缀
  */
 async function pushWechat({ token, title, content, template = 'html', channel = 'wechat' }) {
   if (!token) throw new Error('缺少 PushPlus token');
   if (!content) throw new Error('缺少推送内容');
-  const payload = JSON.stringify({ token, title: title || 'SIGNAL ARCADE 情报简报', content, template, channel });
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
-  try {
-    const r = await fetch('https://www.pushplus.plus/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-      body: payload,
-      signal: controller.signal
-    });
-    const text = await r.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    return { httpStatus: r.status, ...data };
-  } finally {
-    clearTimeout(timer);
+  const baseTitle = title || 'SIGNAL ARCADE 情报简报';
+
+  // 提取外层 header / footer（<section> 之外的固定内容），保证每条消息都有标题和免责声明
+  const headerMatch = content.match(/^([\s\S]*?)(?=<section\b)/i);
+  const footerMatch = content.match(/(<(?:hr|p)\b[\s\S]*?)(?:<\/body><\/html>)?\s*$/i);
+  const header = headerMatch ? headerMatch[1] : '';
+  const footer = footerMatch ? footerMatch[1] : '';
+  // 去掉 header/footer 后只保留 sections
+  let bodyOnly = content;
+  if (header) bodyOnly = bodyOnly.slice(header.length);
+  if (footer && bodyOnly.endsWith(footer)) bodyOnly = bodyOnly.slice(0, -footer.length);
+
+  // 如果 header+footer 本身就已经把额度占满，直接整段切（兜底）
+  const overhead = Buffer.byteLength(header + footer, 'utf8');
+  const chunks = overhead > PUSHPLUS_MAX_CHARS
+    ? splitHtmlBySections(content, PUSHPLUS_MAX_CHARS)
+    : splitHtmlBySections(bodyOnly, PUSHPLUS_MAX_CHARS - overhead);
+
+  const results = [];
+  const total = chunks.length;
+  for (let i = 0; i < total; i++) {
+    const partTitle = total > 1 ? `${baseTitle} (${i + 1}/${total})` : baseTitle;
+    const partContent = total > 1 ? `${header}${chunks[i]}${footer}` : (header ? `${header}${chunks[i]}${footer}` : chunks[i]);
+    const payload = JSON.stringify({ token, title: partTitle, content: partContent, template, channel });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    try {
+      const r = await fetch('https://www.pushplus.plus/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+        body: payload,
+        signal: controller.signal
+      });
+      const text = await r.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      results.push({ part: i + 1, total, title: partTitle, chars: Buffer.byteLength(partContent, 'utf8'), httpStatus: r.status, ...data });
+      // 如果某一条失败，停止后续发送，避免半截轰炸
+      if (data.code !== 200) break;
+      // 多条之间稍作间隔，避免触发频率限制
+      if (i < total - 1) await new Promise(r => setTimeout(r, 800));
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  const ok = results.length === total && results.every(r => r.code === 200);
+  const first = results[0] || {};
+  return {
+    ok,
+    parts: results,
+    totalParts: total,
+    sentParts: results.filter(r => r.code === 200).length,
+    // 兼容旧字段
+    code: first.code,
+    msg: ok ? `已发送 ${results.filter(r=>r.code===200).length}/${total} 条` : (first.msg || first.error || '部分发送失败'),
+    data: first.data
+  };
 }
 
 const server = http.createServer(async (req,res) => {
@@ -115,8 +245,7 @@ const server = http.createServer(async (req,res) => {
       template: body.template || 'html',
       channel: body.channel || 'wechat'
     });
-    const ok = out.code === 200;
-    json(res, ok ? 200 : 502, { pushed: ok, ...out });
+    json(res, out.ok ? 200 : 502, { pushed: out.ok, ...out });
   } catch(e){ json(res,500,{error:e.message}); } return;
  }
  try { let file = u.pathname === '/' ? 'index.html' : u.pathname.slice(1); if (!/^(index\.html|app\.js|style\.css)$/.test(file)) throw Error(); const type=file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html';res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});res.end(await readFile(file)); } catch {res.writeHead(404);res.end('Not found');}
