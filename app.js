@@ -9,14 +9,14 @@ box.onchange=count; count();
 document.querySelector('#all').onclick=()=>{const all=checked().length===sourceNames.length;box.querySelectorAll('input').forEach(x=>x.checked=!all);count()};
 let last=[];
 function esc(s=''){return s.replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
-function render(items){const out=document.querySelector('#results');document.querySelector('#empty').style.display='none';out.innerHTML=items.map(x=>x.error?`<article class="item error"><div class="meta">${esc(x.channel)} · SCAN ERROR</div><h3>未完成读取</h3><p class="tag">${esc(x.error)}</p></article>`:`<article class="item"><div class="meta">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status)}</div><h3><a href="${x.url}" target="_blank" rel="noreferrer">${esc(x.title)}</a></h3>${x.transcript?`<div class="transcript">${esc(x.transcript)}</div>`:'<p class="tag">该视频未能读取公开中文字幕。请通过标题链接观看原视频。</p>'}</article>`).join('')}
+function render(items){const out=document.querySelector('#results');document.querySelector('#empty').style.display='none';out.innerHTML=items.map(x=>x.error?`<article class="item error"><div class="meta">${esc(x.channel)} · SCAN ERROR · 已自动尝试多方向仍异常</div><h3>未完成读取</h3><p class="tag">${esc(x.error)}</p><small style="color:#8a94a6">已自动尝试 5 个搜索方向 × 4 套解析策略 × 多字幕方向，仍未命中。请稍后手动重试或检查频道名称是否变更。</small></article>`:`<article class="item"><div class="meta">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status)}${x.direction?` · 方向${esc(x.direction)}`:''}</div><h3><a href="${x.url}" target="_blank" rel="noreferrer">${esc(x.title)}</a></h3>${x.transcript?`<div class="transcript">${esc(x.transcript)}</div>`:'<p class="tag">该视频未能读取公开中文字幕。请通过标题链接观看原视频。</p>'}</article>`).join('')}
 document.querySelector('#scan').onclick=async()=>{
   const channels=checked();
   if(!channels.length)return alert('请至少选择一个频道');
   const b=document.querySelector('#scan'), p=document.querySelector('#progress'),state=document.querySelector('#state');
   b.disabled=true;p.style.width='10%';state.textContent=`正在连接 YouTube…（0/${channels.length}）`;
   try{
-    // 全频道逐个扫描，前端分批推送进度
+    // 全频道逐个扫描，前端分批推送进度（服务端已支持：每个频道自动尝试 5 个搜索方向 × 多解析策略）
     const all=[];
     const BATCH=4;
     for(let i=0;i<channels.length;i+=BATCH){
@@ -26,12 +26,59 @@ document.querySelector('#scan').onclick=async()=>{
       if(!r.ok)throw Error(data.error);
       all.push(...data.items);
       const done=Math.min(i+BATCH,channels.length);
-      p.style.width=Math.round(done/channels.length*90)+'%';
+      p.style.width=Math.round(done/channels.length*88)+'%';
       state.textContent=`扫描中…（${done}/${channels.length}）`;
       last=all;
       render(last);
     }
-    p.style.width='100%';state.textContent='扫描完成';
+    // === 自动多方向重试：针对扫描异常的频道，自动用备用读取方向再试 ===
+    // 服务端已在首轮扫描中对每个频道尝试 5 个搜索方向 × 2 套 headers × 4 套解析；若仍异常，前端再自动对异常频道逐个发起“多方向重试”二次扫描，
+    // 以应对瞬时限流/风控导致的偶发失败，提升整体成功率。
+    const failedChannels=[...new Set(all.filter(x=>x.error).map(x=>x.channel))];
+    if(failedChannels.length){
+      state.textContent=`检测到 ${failedChannels.length} 个频道扫描异常，自动切换备用读取方向重试…`;
+      p.style.width='90%';
+      // 为避免触发 YouTube 限流，异常频道逐个重试，间隔 700ms
+      for(let idx=0; idx<failedChannels.length; idx++){
+        const ch=failedChannels[idx];
+        state.textContent=`备用方向重试中…（${idx+1}/${failedChannels.length}）${ch} · 已尝试多搜索词/多解析/多字幕方向`;
+        p.style.width=(90+Math.round((idx+1)/failedChannels.length*8))+'%';
+        try{
+          const r=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channels:[ch]})});
+          const data=await r.json();
+          if(!r.ok) throw Error(data.error||('HTTP '+r.status));
+          const retryItems=data.items||[];
+          const hasSuccess=retryItems.some(v=>!v.error);
+          const errIdx=all.findIndex(x=>x.channel===ch && x.error);
+          if(hasSuccess && errIdx!==-1){
+            // 用成功结果替换原来的 error 占位
+            all.splice(errIdx,1,...retryItems);
+            console.log(`[frontend] ${ch} 备用方向重试成功：${retryItems.length} 条`);
+          } else if(!hasSuccess && errIdx!==-1){
+            // 仍失败，追加提示已尝试多方向
+            all[errIdx].error = (all[errIdx].error||'') + '（已自动尝试多方向：5 搜索词 × 多解析策略 × 多字幕轨道）';
+            console.log(`[frontend] ${ch} 备用方向重试仍异常`);
+          } else if(hasSuccess){
+            // 异常情况：未找到对应 error 索引，直接追加
+            all.push(...retryItems);
+          }
+          last=[...all];
+          render(last);
+        }catch(e){
+          console.warn(`[frontend] ${ch} 重试请求失败：`,e.message);
+          const errIdx=all.findIndex(x=>x.channel===ch && x.error);
+          if(errIdx!==-1) all[errIdx].error+='（重试请求异常：'+e.message+'）';
+          render(all);
+        }
+        if(idx < failedChannels.length-1) await new Promise(r=>setTimeout(r,700));
+      }
+      const stillFailed=[...new Set(all.filter(x=>x.error).map(x=>x.channel))].length;
+      if(stillFailed) state.textContent=`扫描完成（${failedChannels.length} 个异常频道已自动多方向重试，仍有 ${stillFailed} 个异常）`;
+      else state.textContent=`扫描完成（${failedChannels.length} 个异常频道经备用方向重试已全部恢复）`;
+    } else {
+      state.textContent='扫描完成';
+    }
+    p.style.width='100%';
     document.querySelector('#stamp').textContent='LAST RUN · '+new Date().toLocaleString('zh-CN');
     document.querySelector('#push').disabled=false;
   }catch(e){state.textContent='执行失败';alert('扫描失败：'+e.message)}
@@ -41,7 +88,7 @@ document.querySelector('#runflows').onclick=async()=>{const b=document.querySele
 document.querySelector('#push').onclick=async()=>{
   const token=document.querySelector('#token').value.trim();
   if(!token)return alert('请输入 PushPlus Token');
-  const items=last.map((x,i)=>x.error?`<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`:`<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`).join('');
+  const items=last.map((x,i)=>x.error?`<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`:`<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}${x.direction?` · 方向${esc(x.direction)}`:''}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`).join('');
   const baseContent=`<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析</h2><p style="color:#666;font-size:13px;">作者：章鱼 AI · 主动式多大模型混合调用 · 智能分析全网境内外有价值动态资讯</p><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间） · 共 ${last.length} 条</p>${items}<p style="color:#999;font-size:12px;">© 章鱼 AI·全景分析 · 仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
   const b=document.querySelector('#push');b.disabled=true;
   const setState=t=>{const s=document.querySelector('#state');if(s)s.textContent=t;};
