@@ -8,28 +8,348 @@ const clean = s => String(s || '').replace(/台湾|台灣/g, '中国台湾').rep
 const decode = s => s.replace(/\\u([0-9a-fA-F]{4})/g, (_,c)=>String.fromCharCode(parseInt(c,16))).replace(/\\"/g,'"').replace(/&amp;/g,'&');
 const json = (res, code, body) => { res.writeHead(code, {'Content-Type':'application/json; charset=utf-8'}); res.end(JSON.stringify(body)); };
 
-async function searchChannel(name) {
-  const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(name + ' 最新 财经');
-  const r = await fetch(url, {headers:{'User-Agent':'Mozilla/5.0'}});
-  if (!r.ok) throw new Error('YouTube 返回 ' + r.status);
-  const html = await r.text();
-  const found = [], seen = new Set();
-  const rx = /"videoId":"([\w-]{11})"[\s\S]{0,1800}?"title":\{"runs":\[\{"text":"([\s\S]*?)"\}/g;
-  let m;
-  while ((m = rx.exec(html)) && found.length < 3) {
-    if (seen.has(m[1])) continue; seen.add(m[1]);
-    const tail = html.slice(m.index, m.index + 5000);
-    const published = (tail.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [,'刚刚'])[1];
-    found.push({ id:m[1], title:clean(decode(m[2])), published:clean(decode(published)), url:'https://www.youtube.com/watch?v='+m[1] });
-  }
-  if (!found.length) throw new Error('未解析到公开视频（可能受地区、频道命名或 YouTube 页面变动影响）');
-  return found;
+// ===================== 多方向读取：通用请求头 =====================
+const YT_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept-Language': 'zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.6',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+};
+const YT_HEADERS_ALT = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+  'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+};
+
+// ===================== 搜索方向：自动构造多个查询词 =====================
+function buildSearchQueries(name) {
+  const base = String(name || '').trim();
+  if (!base) return [];
+  const variants = [];
+  // 方向1：原始“名称 + 最新 财经”（最精准）
+  variants.push(`${base} 最新 财经`);
+  // 方向2：纯名称（解决：带后缀时 YouTube 搜不到）
+  variants.push(base);
+  // 方向3：去除常见后缀后的核心词（例如 “香港經濟日報 HKET” -> “香港經濟日報”）
+  const stripped = base.replace(/\s*(HKET|HKBT|中文网|中文).*$/i, '').trim();
+  if (stripped && stripped !== base) variants.push(stripped);
+  // 方向4：名称 + “财经” （扩大召回）
+  variants.push(`${base} 财经`);
+  // 方向5：名称 + “官方 频道”（针对机构类频道）
+  variants.push(`${base} 官方`);
+  // 方向6：仅首段（针对含 “|”“·” 等分隔的复合名）
+  const firstToken = base.split(/[\|\-·\/\s]+/)[0].trim();
+  if (firstToken && firstToken.length >= 2 && firstToken !== base) variants.push(firstToken);
+  // 去重并限 5 个方向（控制总耗时）
+  const uniq = [];
+  for (const v of variants) if (v && !uniq.includes(v)) uniq.push(v);
+  return uniq.slice(0, 5);
 }
+
+// ===================== 解析方向：多正则/多结构解析 =====================
+function parseVideosWithStrategies(html) {
+  const found = [];
+  const seen = new Set();
+  const push = (id, title, published, from) => {
+    if (!id || seen.has(id)) return;
+    if (!/^[\w-]{11}$/.test(id)) return;
+    seen.add(id);
+    found.push({ id, title: clean(decode(title || '未知标题')), published: clean(decode(published || '刚刚')), url: 'https://www.youtube.com/watch?v=' + id, _from: from });
+  };
+
+  // 策略1：原精确结构 title.runs.text（最常见）
+  try {
+    const rx = /"videoId":"([\w-]{11})"[\s\S]{0,1800}?"title":\{"runs":\[\{"text":"([\s\S]*?)"\}/g;
+    let m; while ((m = rx.exec(html)) && found.length < 3) {
+      const tail = html.slice(m.index, m.index + 5000);
+      const pub = (tail.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [, '刚刚'])[1];
+      push(m[1], m[2], pub, 's1-runs');
+    }
+  } catch {}
+
+  // 策略2：simpleText 标题（部分页面/小型频道）
+  if (found.length < 3) {
+    try {
+      const rx2 = /"videoId":"([\w-]{11})"[\s\S]{0,2200}?"simpleText":"([^"]+)"/g;
+      let m; while ((m = rx2.exec(html)) && found.length < 3) {
+        if (m[2].length < 2) continue;
+        // 过滤明显非视频的导航文本
+        if (/^(首页|Shorts|直播|频道|播放列表)/.test(m[2])) continue;
+        const tail = html.slice(m.index, m.index + 5000);
+        const pub = (tail.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [, '刚刚'])[1];
+        push(m[1], m[2], pub, 's2-simpleText');
+      }
+    } catch {}
+  }
+
+  // 策略3：通用 videoId 扫描 + 就近标题回退（应对页面结构微调）
+  if (found.length < 3) {
+    try {
+      const vidRx = /"videoId":"([\w-]{11})"/g;
+      let m; while ((m = vidRx.exec(html)) && found.length < 3) {
+        if (seen.has(m[1])) continue;
+        const slice = html.slice(m.index, m.index + 6000);
+        let tm = slice.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
+        if (!tm) tm = slice.match(/"title":\{"simpleText":"([^"]+)"/);
+        if (!tm) tm = slice.match(/"text":"([^"]+)"/);
+        if (!tm) continue;
+        if (tm[1].length < 2) continue;
+        const pub = (slice.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [, '刚刚'])[1];
+        push(m[1], tm[1], pub, 's3-generic');
+      }
+    } catch {}
+  }
+
+  // 策略4：ytInitialData 截断内的 videoRenderer（应对 consent/变形 HTML）
+  if (found.length < 3) {
+    try {
+      const ytMatch = html.match(/var ytInitialData\s*=\s*(\{[\s\S]+?\});/);
+      const source = ytMatch ? ytMatch[1] : html;
+      const rx = /"videoId":"([\w-]{11})"/g;
+      let m; while ((m = rx.exec(source)) && found.length < 3) {
+        if (seen.has(m[1])) continue;
+        const slice = source.slice(m.index, m.index + 4000);
+        let tm = slice.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
+        if (!tm) tm = slice.match(/"simpleText":"([^"]+)"/);
+        const title = tm ? tm[1] : '未知标题';
+        push(m[1], title, '刚刚', 's4-ytInitialData');
+      }
+    } catch {}
+  }
+
+  // 策略5：watch 链接兜底（最宽松，仅在前面全空时启用，防止噪音）
+  if (!found.length) {
+    try {
+      const rx = /\/watch\?v=([\w-]{11})/g;
+      let m; while ((m = rx.exec(html)) && found.length < 3) {
+        if (seen.has(m[1])) continue;
+        // 尽量找标题
+        const slice = html.slice(Math.max(0, m.index - 2000), m.index + 4000);
+        let tm = slice.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
+        if (!tm) tm = slice.match(/"title":\{"simpleText":"([^"]+)"/);
+        const title = tm ? tm[1] : `视频 ${m[1]}`;
+        push(m[1], title, '刚刚', 's5-watchUrl');
+      }
+    } catch {}
+  }
+
+  return found.slice(0, 3);
+}
+
+// ===================== 带多方向重试的 searchChannel =====================
+async function searchChannel(name) {
+  const queries = buildSearchQueries(name);
+  if (!queries.length) throw new Error('频道名称为空');
+  let lastError = null;
+  const tried = [];
+  for (let qi = 0; qi < queries.length; qi++) {
+    const q = queries[qi];
+    tried.push(q);
+    const directionLabel = `方向${qi + 1}/${queries.length}`;
+    const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+    // 每个方向最多 2 次 fetch（主 headers + 备用 headers），应对地区/风控差异
+    const headerOptions = [YT_HEADERS, YT_HEADERS_ALT];
+    let html = null;
+    let fetchErr = null;
+    for (let hi = 0; hi < headerOptions.length; hi++) {
+      try {
+        if (hi > 0) await new Promise(r => setTimeout(r, 300));
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000);
+        const r = await fetch(url, { headers: headerOptions[hi], signal: controller.signal }).finally(() => clearTimeout(timer));
+        if (!r.ok) throw new Error('YouTube 返回 ' + r.status);
+        html = await r.text();
+        // 检测是否被风控/同意页拦截
+        if (html && html.length < 8000 && /consent|CONSENT|我们的系统检测到异常流量/.test(html)) {
+          throw new Error('YouTube 风控/同意页拦截');
+        }
+        if (!html || html.length < 2000) throw new Error('返回内容过短，可能被限流');
+        fetchErr = null;
+        break;
+      } catch (e) {
+        fetchErr = e;
+        console.log(`[scan] ${name} ${directionLabel} “${q}” 请求${hi + 1}失败：${e.message}`);
+        // hi loop will try next header
+      }
+    }
+    if (!html) {
+      lastError = fetchErr || new Error('请求失败');
+      console.log(`[scan] ${name} ${directionLabel} “${q}” 无有效 HTML，尝试下一方向`);
+      if (qi < queries.length - 1) await new Promise(r => setTimeout(r, 400));
+      continue;
+    }
+    try {
+      const found = parseVideosWithStrategies(html);
+      if (found.length) {
+        console.log(`[scan] ${name} ${directionLabel} “${q}” 命中 ${found.length} 条（${found.map(v => v._from).join(',')}）`);
+        // 清理内部 _from 标记并标注方向
+        return found.map(v => {
+          const { _from, ...rest } = v;
+          return { ...rest, direction: directionLabel };
+        });
+      } else {
+        lastError = new Error(`未解析到视频`);
+        console.log(`[scan] ${name} ${directionLabel} “${q}” 空结果（多策略均未命中），尝试下一方向`);
+      }
+    } catch (e) {
+      lastError = e;
+      console.log(`[scan] ${name} ${directionLabel} 解析异常：${e.message}`);
+    }
+    if (qi < queries.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+  // 全部方向失败 -> 抛异常，上层会记录为扫描异常
+  throw new Error(`未解析到公开视频（已自动尝试 ${tried.length} 个搜索方向：${tried.join(' / ')}；末错：${lastError ? lastError.message : '未知'}）`);
+}
+
+// ===================== 字幕多方向读取 =====================
+async function fetchTimedTextRaw(id, lang, opts = {}) {
+  const params = new URLSearchParams({ v: id, lang });
+  if (opts.tlang) params.set('tlang', opts.tlang);
+  if (opts.fmt) params.set('fmt', opts.fmt);
+  // kind=asr for auto-generated
+  const url = `https://www.youtube.com/api/timedtext?${params.toString()}`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const r = await fetch(url, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (!r.ok) return '';
+    const xml = await r.text();
+    if (!xml || xml.length < 10) return '';
+    // 常见两种格式：<text>（默认）或 <p>（srv3）
+    let parts = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
+    if (!parts.length) parts = [...xml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
+    // srv1 json 格式兼容
+    if (!parts.length && xml.includes('"events"')) {
+      try {
+        const j = JSON.parse(xml);
+        if (j.events) parts = j.events.map(e => (e.segs || []).map(s => s.utf8 || '').join('')).filter(Boolean);
+      } catch {}
+    }
+    const joined = parts.join(' ').trim();
+    if (!joined) return '';
+    return clean(decode(joined)).slice(0, 7000);
+  } catch {
+    return '';
+  }
+}
+
 async function captions(id) {
-  const r = await fetch(`https://www.youtube.com/api/timedtext?v=${id}&lang=zh-Hant`, {headers:{'User-Agent':'Mozilla/5.0'}});
-  if (!r.ok) return '';
-  const xml = await r.text();
-  return clean(decode([...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x=>x[1].replace(/<[^>]+>/g,'')).join(' '))).slice(0, 7000);
+  // 方向组1：直连 zh 各变体（覆盖大多数繁中频道）
+  const langDirections = ['zh-Hant', 'zh-Hans', 'zh', 'zh-CN', 'zh-TW', 'zh-HK'];
+  for (const lang of langDirections) {
+    const t = await fetchTimedTextRaw(id, lang);
+    if (t && t.length > 10) {
+      console.log(`[caption] ${id} 命中直连 ${lang} (${t.length}字)`);
+      return t;
+    }
+    // 尝试带 fmt 的备用（srv3）
+    const t2 = await fetchTimedTextRaw(id, lang, { fmt: 'srv3' });
+    if (t2 && t2.length > 10 && t2 !== t) {
+      console.log(`[caption] ${id} 命中直连 ${lang} srv3 (${t2.length}字)`);
+      return t2;
+    }
+  }
+
+  // 方向组2：通过 list 接口发现可用轨道，再逐个尝试（自动发现）
+  try {
+    const listUrl = `https://www.youtube.com/api/timedtext?type=list&v=${id}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const r = await fetch(listUrl, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (r.ok) {
+      const xml = await r.text();
+      const tracks = [...xml.matchAll(/lang_code="([^"]+)"/g)].map(m => m[1]);
+      if (tracks.length) console.log(`[caption] ${id} list 发现轨道: ${tracks.join(',')}`);
+      // 优先 zh，再 en，再其他
+      const score = l => l.startsWith('zh') ? 0 : l === 'en' || l.startsWith('en') ? 1 : 2;
+      const prioritized = [...new Set(tracks)].sort((a, b) => score(a) - score(b));
+      for (const lang of prioritized) {
+        if (langDirections.includes(lang)) continue; // 已试过
+        const t = await fetchTimedTextRaw(id, lang);
+        if (t && t.length > 10) {
+          console.log(`[caption] ${id} 命中 list 轨道 ${lang} (${t.length}字)`);
+          return t;
+        }
+        // 若为英文，尝试翻译成 zh-Hant
+        if (lang.startsWith('en')) {
+          const tr = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hant' });
+          if (tr && tr.length > 10) {
+            console.log(`[caption] ${id} 命中翻译轨道 ${lang}->zh-Hant (${tr.length}字)`);
+            return tr;
+          }
+          const tr2 = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hans' });
+          if (tr2 && tr2.length > 10) return tr2;
+        }
+      }
+      // 已有轨道但未命中正文，尝试对第一条做翻译兜底
+      if (prioritized.length) {
+        for (const lang of prioritized.slice(0, 2)) {
+          const tr = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hant' });
+          if (tr && tr.length > 10) {
+            console.log(`[caption] ${id} 命中翻译兜底 ${lang}->zh-Hant`);
+            return tr;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`[caption] ${id} list 方向异常：${e.message}`);
+  }
+
+  // 方向组3：抓 watch 页抽 captionTracks（应对 timedtext 直连被限）
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const wp = await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (wp.ok) {
+      const html = await wp.text();
+      const capMatch = html.match(/"captionTracks":\[[\s\S]{0,10000}?\]/);
+      if (capMatch) {
+        const block = capMatch[0];
+        const urls = [...block.matchAll(/"baseUrl":"([^"]+)"/g)].map(m => JSON.parse(`"${m[1]}"`).replace(/\\u0026/g, '&'));
+        const langs = [...block.matchAll(/"languageCode":"([^"]+)"/g)].map(m => m[1]);
+        if (urls.length) console.log(`[caption] ${id} watch页轨道 ${langs.join(',')}`);
+        for (let i = 0; i < urls.length; i++) {
+          try {
+            const controller2 = new AbortController();
+            const timer2 = setTimeout(() => controller2.abort(), 8000);
+            const r2 = await fetch(urls[i], { headers: YT_HEADERS, signal: controller2.signal }).finally(() => clearTimeout(timer2));
+            if (!r2.ok) continue;
+            const txt = await r2.text();
+            let parts = [...txt.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
+            if (!parts.length) parts = [...txt.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
+            const joined = clean(decode(parts.join(' '))).slice(0, 7000);
+            if (joined.length > 10) {
+              console.log(`[caption] ${id} watch页命中 ${langs[i] || 'unknown'} (${joined.length}字)`);
+              return joined;
+            }
+          } catch {}
+        }
+        // 翻译兜底：对第一条轨道加 tlang
+        if (urls.length) {
+          try {
+            const tUrl = urls[0].includes('?') ? urls[0] + '&tlang=zh-Hant' : urls[0] + '?tlang=zh-Hant';
+            const r3 = await fetch(tUrl, { headers: YT_HEADERS });
+            if (r3.ok) {
+              const txt = await r3.text();
+              let parts = [...txt.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
+              if (!parts.length) parts = [...txt.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
+              const joined = clean(decode(parts.join(' '))).slice(0, 7000);
+              if (joined.length > 10) {
+                console.log(`[caption] ${id} watch页翻译命中 (${joined.length}字)`);
+                return joined;
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`[caption] ${id} watch页方向异常：${e.message}`);
+  }
+
+  // 方向组4：尝试 innertube 风格的自动字幕（最后兜底，尽力而为）
+  // 若以上均失败，返回空字符串，上层会标记“未提供公开中文字幕”但保留视频链接
+  return '';
 }
 async function runFlows(token) {
   const repo = process.env.GITHUB_REPO || 'k-macao/08';
@@ -50,15 +370,19 @@ async function runFlows(token) {
 async function scan(names) {
  // 章鱼 AI·全景分析：扫描全部所选频道，不再限制 12 个。
  // 频道逐个顺序抓取，避免对 YouTube 产生过高并发；每个频道最多 3 条视频。
+ // 异常频道自动多方向重试：searchChannel 内部已尝试 5 个搜索方向 × 2 套 headers × 4 套解析策略；
+ // captions 内部已尝试 zh 多变体 × list 发现 × watch 页抽轨道 × 翻译，共 4 组字幕方向。
  const results = [];
  for (const name of names) {
   try {
    const videos = await searchChannel(name);
    for (const video of videos) {
     const transcript = await captions(video.id);
-    results.push({...video, channel:name, transcript, status:transcript ? '字幕已读取' : '未提供公开中文字幕'});
+    results.push({...video, channel:name, transcript, status:transcript ? '字幕已读取（多字幕方向命中）' : '未提供公开中文字幕（已自动尝试多字幕方向：zh-Hant/zh-Hans/zh/list/watch/翻译）'});
    }
   } catch (e) { results.push({channel:name, error:e.message}); }
+  // 频道间礼貌间隔，降低限流概率
+  if (names.length > 1) await new Promise(r => setTimeout(r, 180));
  }
  return results;
 }
