@@ -210,14 +210,14 @@ export function renderSummaryHtml(summary, meta = {}) {
   const stamp = meta.generatedAt || new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Macau' });
   const itemCount = meta.itemCount || 0;
   const li = arr => (arr && arr.length)
-    ? `<ul style="margin:6px 0 0 18px;padding:0;color:#333;">${arr.map(x => `<li style="margin:3px 0;">${esc(x)}</li>`).join('')}</ul>`
-    : '<p style="margin:6px 0 0;color:#999;font-size:12px;">（无）</p>';
+    ? `<ul style="margin:6px 0 0 18px;padding:0;color:#333;font-size:10px;line-height:1.7;">${arr.map(x => `<li style="margin:3px 0;">${esc(x)}</li>`).join('')}</ul>`
+    : '<p style="margin:6px 0 0;color:#999;font-size:10px;line-height:1.7;">（无）</p>';
   return [
     '<section style="margin:14px 0;padding:14px;border:1px solid #1a4d8f;border-left:5px solid #1a4d8f;border-radius:6px;background:#eef4fb;">',
       '<div style="font-size:12px;color:#1a4d8f;font-weight:700;letter-spacing:.5px;">🧠 章鱼 AI · 主题聚类总结</div>',
       `<p style="color:#999;font-size:11px;margin:4px 0 8px;">生成时间：${esc(stamp)}（澳门时间） · 基于本次 ${itemCount} 条情报</p>`,
       '<h3 style="margin:4px 0 6px;color:#1a4d8f;font-size:15px;">今日主线</h3>',
-      `<p style="margin:0 0 10px;color:#222;line-height:1.7;white-space:pre-wrap;">${esc(summary.main)}</p>`,
+      `<p style="margin:0 0 10px;color:#222;line-height:1.7;white-space:pre-wrap;font-size:10px;">${esc(summary.main)}</p>`,
       '<h3 style="margin:6px 0 4px;color:#1a4d8f;font-size:14px;">热点话题</h3>',
       li(summary.hotTopics),
       '<h3 style="margin:10px 0 4px;color:#c0392b;font-size:14px;">风险点</h3>',
