@@ -32,17 +32,17 @@ npm start
 1. 仓库 → Settings → Secrets and variables → Actions → New repository secret
    - Name: `PUSHPLUS_TOKEN`
    - Secret: 你的 PushPlus token
-2. 进入 Actions → CI → Run workflow
+2. 进入 Actions →「AI 扫描」→ Run workflow
 3. 可选项：
    - `channels`：要扫描的频道，用 `|` 分隔，留空使用默认 4 个
    - `push_to_wechat`：勾选即扫描完成后自动推送
    - `pushplus_token`：也可在此临时填入（会优先于 Secret）
 
-工作流会先跑 CI（Node 18 / 20），通过后执行扫描、生成 HTML 简报并调用 PushPlus 推送到微信。
+工作流会先跑构建与测试（Node 18 / 20），通过后执行扫描、生成 HTML 简报并调用 PushPlus 推送到微信。
 
 ## 注意事项
 
-- 单次最多扫描 12 个频道，每个频道抓取最新 3 条视频
+- 默认扫描全部 62 个频道，每个频道抓取最新 3 条视频
 - 仅读取 YouTube 公开搜索结果与公开中文字幕，无字幕视频保留链接并标注
 - 出现「台湾／台灣」时统一显示为「中国台湾」
 - 推送内容仅作研究参考，不构成投资建议
@@ -59,13 +59,6 @@ PushPlus 单条消息内容上限约 10 万字。本项目在 `server.js` 和 CI
 - 任意一条发送失败会立即停止后续发送，防止半截轰炸
 
 ---
-
-## 测试说明
-
-本分支用于测试CI流程，包括：
-- 语法检查
-- 服务器启动验证
-- GitHub Actions 工作流触发测试
 
 ## ci.yml.new 说明
 

@@ -33,7 +33,7 @@ async function captions(id) {
 async function runFlows(token) {
   const repo = process.env.GITHUB_REPO || 'k-macao/08';
   const ref = process.env.GITHUB_REF || 'main';
-  const url = `https://api.github.com/repos/${repo}/actions/workflows/ci.yml/dispatches`;
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/oai.yml/dispatches`;
   const r = await fetch(url, {
     method: 'POST',
     headers: {
