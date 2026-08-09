@@ -146,8 +146,8 @@ jobs:
             ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
             : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
           ).join('');
-          const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">SIGNAL ARCADE · 财经情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
-          const title = `SIGNAL ARCADE 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+          const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 全景情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+          const title = `章鱼 AI·全景分析 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
           fs.writeFileSync('brief.html', content);
 
           const PUSHPLUS_MAX_CHARS = 90000;
@@ -203,7 +203,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: signal-arcade-brief
+          name: octopus-ai-brief
           path: |
             scan_result.json
             brief.html
@@ -273,8 +273,8 @@ jobs:
               ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
               : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
             ).join('');
-            const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">SIGNAL ARCADE · 每日财经简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
-            const title = `📰 每日财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+            const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 每日财经简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+            const title = `📰 章鱼 AI·全景分析 · 每日财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
 
             const token = process.env.PUSHPLUS_TOKEN;
             const r = await fetch('https://www.pushplus.plus/send', {
