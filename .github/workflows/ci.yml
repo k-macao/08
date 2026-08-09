@@ -1,4 +1,4 @@
-name: CI
+name: AI 扫描
 
 on:
   push:
