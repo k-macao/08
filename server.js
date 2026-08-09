@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { URL } from 'node:url';
+import { summarize, renderSummaryHtml } from './ai.mjs';
 
 const PORT = process.env.PORT || 3000;
 const clean = s => String(s || '').replace(/台湾|台灣/g, '中国台湾').replace(/\s+/g, ' ').trim();
@@ -60,6 +61,24 @@ async function scan(names) {
   } catch (e) { results.push({channel:name, error:e.message}); }
  }
  return results;
+}
+
+/**
+ * 给扫描结果做 AI 主题聚类总结（DeepSeek），并返回一段 HTML 片段，
+ * 供 pushWechat 插到内容顶部。失败一律返回空字符串（降级到原始推送）。
+ */
+async function buildSummaryHtml(items) {
+  try {
+    const summary = await summarize(items, { onLog: (s) => console.log(s) });
+    if (!summary) return '';
+    return renderSummaryHtml(summary, {
+      generatedAt: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Macau' }),
+      itemCount: items.length
+    });
+  } catch (e) {
+    console.log('[ai] buildSummaryHtml 异常：', e.message);
+    return '';
+  }
 }
 
 /**
@@ -260,6 +279,17 @@ const server = http.createServer(async (req,res) => {
    const out = await runFlows(token);
    json(res, out.ok ? 200 : 502, { dispatched: out.ok, status: out.status });
   } catch(e){json(res,500,{error:e.message});} return;
+ }
+ if (u.pathname === '/api/summarize' && req.method === 'POST') {
+  try {
+    const body = await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (!items.length) return json(res, 400, { error: '缺少 items' });
+    const summaryHtml = await buildSummaryHtml(items);
+    if (!summaryHtml) return json(res, 200, { ok: false, summaryHtml: '', reason: 'AI 总结不可用（未配置 key / 调用失败 / 解析失败），已降级为无总结推送' });
+    return json(res, 200, { ok: true, summaryHtml });
+  } catch (e) { json(res, 500, { error: e.message }); }
+  return;
  }
  if (u.pathname === '/api/push' && req.method === 'POST') {
   try {
