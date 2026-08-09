@@ -32,6 +32,22 @@ async function captions(id) {
   const xml = await r.text();
   return clean(decode([...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x=>x[1].replace(/<[^>]+>/g,'')).join(' '))).slice(0, 7000);
 }
+async function runFlows(token) {
+  const repo = process.env.GITHUB_REPO || 'k-macao/08';
+  const ref = process.env.GITHUB_REF || 'main';
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/ci.yml/dispatches`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ref })
+  });
+  return { ok: r.ok, status: r.status };
+}
 async function scan(names) {
  const results = [];
  for (const name of names.slice(0, 12)) {
@@ -49,6 +65,14 @@ const server = http.createServer(async (req,res) => {
  const u = new URL(req.url, `http://${req.headers.host}`);
  if (u.pathname === '/api/scan' && req.method === 'POST') {
   try { const {channels=[]} = await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})}); json(res,200,{items:await scan(channels), fetchedAt:new Date().toISOString()}); } catch(e){json(res,500,{error:e.message});} return;
+ }
+ if (u.pathname === '/api/run-flows' && req.method === 'POST') {
+  try { const body=await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});
+   const token = process.env.GITHUB_TOKEN || body.token;
+   if (!token) return json(res,400,{error:'缺少 GITHUB_TOKEN（请在服务器环境变量中配置，或传入 body.token）'});
+   const out = await runFlows(token);
+   json(res, out.ok ? 200 : 502, { dispatched: out.ok, status: out.status });
+  } catch(e){json(res,500,{error:e.message});} return;
  }
  if (u.pathname === '/api/push' && req.method === 'POST') {
   try { const body=await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s))}catch(e){bad(e)}})});
