@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # 每天澳门时间 08:00 (UTC 00:00) 自动扫描并推送
+    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       channels:
@@ -23,6 +26,9 @@ on:
         default: ''
         type: string
 
+env:
+  NODE_VERSION: 20
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -32,34 +38,61 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node${{ matrix.node-version }}-
+
       - name: Install dependencies
         run: npm install
-      - name: Verify server starts
-        run: |
-          timeout 10 node server.js &
-          sleep 3
-          curl -f http://localhost:3000 || exit 1
-          kill %1 || true
+
       - name: Check syntax
         run: node --check server.js && node --check app.js
 
+      - name: Verify server starts
+        timeout-minutes: 2
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          sleep 3
+          curl -sf --max-time 5 http://localhost:3000/ > /dev/null || { echo "::error::Server failed to start"; kill $SERVER_PID 2>/dev/null; exit 1; }
+          kill $SERVER_PID 2>/dev/null
+          echo "✅ Server started and responded on port 3000"
+
+  # ─── 手动触发 + 微信推送 ───
   scan-and-push:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.push_to_wechat }}
     needs: build-and-test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
+
       - name: Install dependencies
         run: npm install
 
@@ -72,11 +105,12 @@ jobs:
             echo "::error::缺少 PushPlus token：请在 workflow_dispatch 填 pushplus_token 或在仓库 Secrets 配置 PUSHPLUS_TOKEN"
             exit 1
           fi
+
           # 启动本地 server
           PORT=3000 node server.js &
           SERVER_PID=$!
           sleep 3
-          curl -f http://localhost:3000 || { echo "server 未启动"; kill $SERVER_PID; exit 1; }
+          curl -sf --max-time 5 http://localhost:3000 || { echo "::error::server 未启动"; kill $SERVER_PID 2>/dev/null; exit 1; }
 
           # 解析频道：支持 | 、, 、换行 分隔
           if [ -z "$CHANNELS_INPUT" ]; then
@@ -91,8 +125,14 @@ jobs:
           echo "Channels: $CHANNELS_JSON"
 
           # 调用本地 /api/scan
-          SCAN_RESP=$(curl -s -X POST http://localhost:3000/api/scan -H 'Content-Type: application/json' -d "{\"channels\": $CHANNELS_JSON}")
-          echo "$SCAN_RESP" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);if(!j.items) throw Error('no items'); console.log('扫描到', j.items.length, '条');}catch(e){console.error('扫描结果解析失败',e.message, d); process.exit(1)}})"
+          SCAN_RESP=$(curl -s --max-time 300 -X POST http://localhost:3000/api/scan \
+            -H 'Content-Type: application/json' \
+            -d "{\"channels\": $CHANNELS_JSON}")
+          echo "$SCAN_RESP" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+              try{const j=JSON.parse(d);if(!j.items) throw Error('no items'); console.log('扫描到', j.items.length, '条');}
+              catch(e){console.error('扫描结果解析失败',e.message, d.slice(0,500)); process.exit(1)}
+            })"
           echo "$SCAN_RESP" > scan_result.json
 
           # 生成 HTML 并按 server.js 同款逻辑分条推送到 PushPlus
@@ -110,7 +150,6 @@ jobs:
           const title = `SIGNAL ARCADE 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
           fs.writeFileSync('brief.html', content);
 
-          // 复用 server.js 的分段逻辑（简化同步）
           const PUSHPLUS_MAX_CHARS = 90000;
           function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
             const parts=[]; const sections = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
@@ -158,7 +197,7 @@ jobs:
           console.log(`推送完成 ${okCount}/${chunks.length}`);
           NODE
 
-          kill $SERVER_PID || true
+          kill $SERVER_PID 2>/dev/null || true
 
       - name: Upload brief artifact
         if: always()
@@ -169,3 +208,91 @@ jobs:
             scan_result.json
             brief.html
             chunks.json
+
+  # ─── 定时任务：每日自动扫描 + 推送 ───
+  daily-scan:
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Daily scan and push
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: |
+          if [ -z "$PUSHPLUS_TOKEN" ]; then
+            echo "::warning::未配置 PUSHPLUS_TOKEN，仅执行扫描，不推送微信"
+          fi
+
+          PORT=3000 node server.js &
+          SERVER_PID=$!
+          sleep 3
+          curl -sf --max-time 5 http://localhost:3000 || { echo "::error::server 未启动"; kill $SERVER_PID 2>/dev/null; exit 1; }
+
+          CHANNELS_JSON='["信報財經新聞","Finance730","香港經濟日報 HKET","香港財經時報 HKBT"]'
+          echo "Channels: $CHANNELS_JSON"
+
+          SCAN_RESP=$(curl -s --max-time 300 -X POST http://localhost:3000/api/scan \
+            -H 'Content-Type: application/json' \
+            -d "{\"channels\": $CHANNELS_JSON}")
+          echo "$SCAN_RESP" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+              try{const j=JSON.parse(d);if(!j.items) throw Error('no items'); console.log('扫描到', j.items.length, '条');}
+              catch(e){console.error('扫描结果解析失败',e.message, d.slice(0,500)); process.exit(1)}
+            })"
+          echo "$SCAN_RESP" > scan_result.json
+
+          # 如果有 token 则推送
+          if [ -n "$PUSHPLUS_TOKEN" ]; then
+            node << 'NODE'
+            import fs from 'node:fs';
+            const scan = JSON.parse(fs.readFileSync('scan_result.json','utf8'));
+            const items = scan.items || [];
+            const esc = s => String(s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+            const sections = items.map((x,i)=> x.error
+              ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
+              : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
+            ).join('');
+            const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">SIGNAL ARCADE · 每日财经简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+            const title = `📰 每日财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+
+            const token = process.env.PUSHPLUS_TOKEN;
+            const r = await fetch('https://www.pushplus.plus/send', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify({ token, title, content, template:'html', channel:'wechat' })
+            });
+            const data = await r.json();
+            console.log('推送结果:', JSON.stringify(data));
+            if(data.code !== 200) process.exit(1);
+            NODE
+          fi
+
+          kill $SERVER_PID 2>/dev/null || true
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-scan-result
+          path: scan_result.json
