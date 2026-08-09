@@ -1,4 +1,4 @@
-# SIGNAL ARCADE // 财经情报台
+# 章鱼 AI·全景分析 // OCTOPUS AI PANORAMA
 
 按频道抓取 YouTube 最新公开视频，提取可用中文字幕，汇总为情报简报并推送到微信（PushPlus）。
 
