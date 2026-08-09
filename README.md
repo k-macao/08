@@ -36,7 +36,7 @@ npm start
    - Secret: 你的 DeepSeek API key（[获取地址](https://platform.deepseek.com/api_keys)）
 2. 进入 Actions →「AI 扫描」→ Run workflow
 3. 可选项：
-   - `channels`：要扫描的频道，用 `|` 分隔，留空使用默认 4 个
+   - `channels`：要扫描的频道，用 `|` 分隔，留空或填 `ALL` 则默认扫描全部 62 个频道
    - `push_to_wechat`：勾选即扫描完成后自动推送
    - `pushplus_token`：也可在此临时填入（会优先于 Secret）
    - `enable_ai_summary`：默认 `true`，扫描完成后会用 AI 对所有视频字幕做主题聚类总结，拼到推送内容顶部
