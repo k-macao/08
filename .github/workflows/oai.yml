@@ -1,5 +1,10 @@
 name: AI 扫描
 
+# 重要：本文件 ci.yml.new 是给 GitHub 机器人没有 workflows 写权限时用的迁移源。
+# 维护方式：当 oai.yml 需要更新时，由 bot 把新内容写进本文件，
+# 仓库维护者用网页编辑器把 ci.yml.new 整段复制到 .github/workflows/oai.yml 并提交。
+# 本文件与 oai.yml 内容始终保持一致。
+
 on:
   push:
     branches: [main]
@@ -11,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       channels:
-        description: '要扫描的频道，多个用 | 分隔，留空使用默认 4 个'
+        description: '要扫描的频道，多个用 | 分隔，留空使用默认 4 个（信報/Finance730/香港經濟日報/香港財經時報）'
         required: false
         default: ''
         type: string
@@ -25,6 +30,11 @@ on:
         required: false
         default: ''
         type: string
+      enable_ai_summary:
+        description: '推送前用 AI（DeepSeek）对视频字幕做主题聚类总结'
+        required: false
+        default: true
+        type: boolean
 
 env:
   NODE_VERSION: 20
@@ -56,7 +66,7 @@ jobs:
         run: npm install
 
       - name: Check syntax
-        run: node --check server.js && node --check app.js
+        run: node --check server.js && node --check app.js && node --check ai.mjs
 
       - name: Verify server starts
         timeout-minutes: 2
@@ -73,7 +83,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.push_to_wechat }}
     needs: build-and-test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -100,6 +110,8 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ inputs.pushplus_token != '' && inputs.pushplus_token || secrets.PUSHPLUS_TOKEN }}
           CHANNELS_INPUT: ${{ inputs.channels }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          ENABLE_AI_SUMMARY: ${{ inputs.enable_ai_summary }}
         run: |
           if [ -z "$PUSHPLUS_TOKEN" ]; then
             echo "::error::缺少 PushPlus token：请在 workflow_dispatch 填 pushplus_token 或在仓库 Secrets 配置 PUSHPLUS_TOKEN"
@@ -118,14 +130,14 @@ jobs:
           else
             CHANNELS_JSON=$(node -e "
               const raw = process.env.CHANNELS_INPUT || '';
-              const arr = raw.split(/[|\n,]+/).map(s=>s.trim()).filter(Boolean).slice(0,12);
+              const arr = raw.split(/[|\n,]+/).map(s=>s.trim()).filter(Boolean);
               console.log(JSON.stringify(arr));
             ")
           fi
           echo "Channels: $CHANNELS_JSON"
 
           # 调用本地 /api/scan
-          SCAN_RESP=$(curl -s --max-time 300 -X POST http://localhost:3000/api/scan \
+          SCAN_RESP=$(curl -s --max-time 900 -X POST http://localhost:3000/api/scan \
             -H 'Content-Type: application/json' \
             -d "{\"channels\": $CHANNELS_JSON}")
           echo "$SCAN_RESP" | node -e "
@@ -146,7 +158,31 @@ jobs:
             ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
             : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
           ).join('');
-          const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 全景情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+
+          // AI 总结（可选）：DeepSeek 主题聚类；失败自动降级，content 仍可推送
+          let summaryHtml = '';
+          if (String(process.env.ENABLE_AI_SUMMARY) === 'true' && process.env.DEEPSEEK_API_KEY) {
+            try {
+              const r = await fetch('http://localhost:3000/api/summarize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items })
+              });
+              const d = await r.json();
+              if (r.ok && d && d.ok && d.summaryHtml) {
+                summaryHtml = d.summaryHtml;
+                console.log('✅ 已附加 AI 主题聚类总结');
+              } else {
+                console.log('⚠️ AI 总结未启用/失败，降级推送：', d && (d.reason || d.error) || ('HTTP ' + r.status));
+              }
+            } catch (e) {
+              console.log('⚠️ AI 总结异常，降级推送：', e.message);
+            }
+          } else {
+            console.log('ℹ️ 未启用 AI 总结（ENABLE_AI_SUMMARY 或 DEEPSEEK_API_KEY 缺失）');
+          }
+
+          const content = (summaryHtml || '') + `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 全景情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
           const title = `章鱼 AI·全景分析 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
           fs.writeFileSync('brief.html', content);
 
@@ -213,7 +249,7 @@ jobs:
   daily-scan:
     if: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -239,6 +275,7 @@ jobs:
       - name: Daily scan and push
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           if [ -z "$PUSHPLUS_TOKEN" ]; then
             echo "::warning::未配置 PUSHPLUS_TOKEN，仅执行扫描，不推送微信"
@@ -249,10 +286,11 @@ jobs:
           sleep 3
           curl -sf --max-time 5 http://localhost:3000 || { echo "::error::server 未启动"; kill $SERVER_PID 2>/dev/null; exit 1; }
 
-          CHANNELS_JSON='["信報財經新聞","Finance730","香港經濟日報 HKET","香港財經時報 HKBT"]'
+          # 默认全量推送：与 app.js 同步的 62 个频道
+          CHANNELS_JSON='["信報財經新聞","Finance730","香港經濟日報 HKET","香港財經時報 HKBT","新城財經台","香港金融管理局","游庭皓的財經皓角","柴鼠兄弟 ZRBros","风傳媒-下班经济學","老王愛說笑","SHIN LI","自由女神邱沁宜","Better Leaf 好葉","慢活夫妻 George & Dewi","大俠武林","股乾爹 KuKanTieh","Gooaye股癌","理財不能等","懶錢包LazyWallet","M觀點","蕾咪Rami","財經 M 平方 MacroMicro","元大投顧財金頻道","股海老牛","财经风云","视野环球财经","阳光财经","ChineseFN 中文投資網","财经全世界","王剑财经观察","老李玩钱","土妹发财","贝拉说美股","美投说美股","艾爾文","寶可孟の省錢大作戰","吳淡如人生實用商學院","郭哲榮分析師","央视财经","Bloomberg中国","肖恩","老徐价值投资","小Lin说","CK财经频道","钱姐说钱","硅谷居士","Mr.Market市场先生","财报狗","天下杂志","商业周刊","今周刊","非凡财经新闻","东森财经新闻","第一财经","FT中文网","BBC News 中文","德国之声中文","美国之音中文网","自由亚洲电台","观视频工作室","睡前消息","曲博科技教室"]'
           echo "Channels: $CHANNELS_JSON"
 
-          SCAN_RESP=$(curl -s --max-time 300 -X POST http://localhost:3000/api/scan \
+          SCAN_RESP=$(curl -s --max-time 900 -X POST http://localhost:3000/api/scan \
             -H 'Content-Type: application/json' \
             -d "{\"channels\": $CHANNELS_JSON}")
           echo "$SCAN_RESP" | node -e "
@@ -262,7 +300,7 @@ jobs:
             })"
           echo "$SCAN_RESP" > scan_result.json
 
-          # 如果有 token 则推送
+          # 如果有 token 则推送（与 scan-and-push 同一套分块逻辑，全量推送可能超过 10 万字）
           if [ -n "$PUSHPLUS_TOKEN" ]; then
             node << 'NODE'
             import fs from 'node:fs';
@@ -273,18 +311,79 @@ jobs:
               ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
               : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
             ).join('');
-            const content = `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 每日财经简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+
+            // AI 总结（可选）：仅当配置了 DEEPSEEK_API_KEY 才启用
+            let summaryHtml = '';
+            if (process.env.DEEPSEEK_API_KEY) {
+              try {
+                const r = await fetch('http://localhost:3000/api/summarize', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ items })
+                });
+                const d = await r.json();
+                if (r.ok && d && d.ok && d.summaryHtml) {
+                  summaryHtml = d.summaryHtml;
+                  console.log('✅ 已附加 AI 主题聚类总结');
+                } else {
+                  console.log('⚠️ AI 总结未启用/失败，降级推送：', d && (d.reason || d.error) || ('HTTP ' + r.status));
+                }
+              } catch (e) {
+                console.log('⚠️ AI 总结异常，降级推送：', e.message);
+              }
+            } else {
+              console.log('ℹ️ 未配置 DEEPSEEK_API_KEY，跳过 AI 总结');
+            }
+
+            const content = (summaryHtml || '') + `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 每日财经简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
             const title = `📰 章鱼 AI·全景分析 · 每日财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+            fs.writeFileSync('brief.html', content);
+
+            const PUSHPLUS_MAX_CHARS = 90000;
+            function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
+              const parts=[]; const sections = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
+              const flush=()=>{ if(buf.trim()){ parts.push(buf); buf=''; } };
+              const splitOversizedSection=(sec,max)=>{
+                const out=[]; const headMatch=sec.match(/^<section\b[^>]*>/i); const head=headMatch?headMatch[0]:'<section>'; const tailMatch=sec.match(/<\/section>\s*$/i); const tail=tailMatch?tailMatch[0]:'</section>'; const headEnd=headMatch?headMatch[0].length:9; const inner=sec.slice(headEnd, sec.length-tail.length); const pieceBudget=max-Buffer.byteLength(head+tail,'utf8');
+                if(pieceBudget<=0){ let s=sec; while(Buffer.byteLength(s,'utf8')>max){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=max) lo=mid; else hi=mid-1;} out.push(s.slice(0,lo)); s=s.slice(lo);} if(s) out.push(s); return out; }
+                const chunks=inner.split(/(?=<\/p>|<p\b|<br\s*\/?>|。)/i); let cur='';
+                for(const c of chunks){ if(Buffer.byteLength(c,'utf8')>pieceBudget){ if(cur){ out.push(head+cur+tail); cur=''; } let s=c; while(Buffer.byteLength(s,'utf8')>pieceBudget){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=pieceBudget) lo=mid; else hi=mid-1;} let cut=lo; const win=s.slice(Math.max(0,lo-200),lo); const m=win.match(/[。！？\n]/g); if(m) cut=lo-200+win.lastIndexOf(m[m.length-1])+1; out.push(head+s.slice(0,cut)+tail); s=s.slice(cut);} if(s) cur=s; } else if(Buffer.byteLength(cur+c,'utf8')>pieceBudget && cur){ out.push(head+cur+tail); cur=c; } else cur+=c; } if(cur) out.push(head+cur+tail); return out;
+              };
+              for(const sec of sections){ if(Buffer.byteLength(sec,'utf8')>maxChars){ flush(); for(const p of splitOversizedSection(sec,maxChars)) parts.push(p); continue; } if(Buffer.byteLength(buf+sec,'utf8')>maxChars) flush(); buf+=sec; } flush(); return parts;
+            }
+
+            let header='', footer='', bodyOnly=content;
+            const firstIdx=content.search(/<section\b/i); const lastEnd=content.toLowerCase().lastIndexOf('</section>');
+            if(firstIdx!==-1 && lastEnd!==-1 && lastEnd>firstIdx){ header=content.slice(0,firstIdx); footer=content.slice(lastEnd+'</section>'.length); bodyOnly=content.slice(firstIdx,lastEnd+'</section>'.length); }
+            else if(firstIdx!==-1){ header=content.slice(0,firstIdx); bodyOnly=content.slice(firstIdx); footer=''; }
+            const overhead=Buffer.byteLength(header+footer,'utf8');
+            let chunks= overhead>90000 ? splitHtmlBySections(content,90000) : splitHtmlBySections(bodyOnly, 90000-overhead);
+            if(!chunks.length){ const fb=(header+bodyOnly+footer)||content; chunks=splitHtmlBySections(fb,90000); if(!chunks.length) chunks=[fb]; if(header||footer){header=''; footer='';} }
+            console.log(`内容 ${Buffer.byteLength(content,'utf8')} 字节，分 ${chunks.length} 条发送`);
+            fs.writeFileSync('chunks.json', JSON.stringify({header, footer, chunks, title}, null, 2));
 
             const token = process.env.PUSHPLUS_TOKEN;
-            const r = await fetch('https://www.pushplus.plus/send', {
-              method:'POST',
-              headers:{ 'Content-Type':'application/json' },
-              body: JSON.stringify({ token, title, content, template:'html', channel:'wechat' })
-            });
-            const data = await r.json();
-            console.log('推送结果:', JSON.stringify(data));
-            if(data.code !== 200) process.exit(1);
+            let okCount=0;
+            for(let i=0;i<chunks.length;i++){
+              const partTitle = chunks.length>1 ? `${title} (${i+1}/${chunks.length})` : title;
+              const partContent = (header||footer) ? `${header}${chunks[i]}${footer}` : chunks[i];
+              const payload = JSON.stringify({ token, title: partTitle, content: partContent, template: 'html', channel: 'wechat' });
+              console.log(`推送 ${i+1}/${chunks.length}: ${partTitle} (${Buffer.byteLength(partContent,'utf8')} bytes)`);
+              let r, text, data;
+              try {
+                r = await fetch('https://www.pushplus.plus/send', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: payload });
+                text = await r.text();
+                try{ data=JSON.parse(text);}catch{ data={raw:text} }
+              } catch(e){
+                console.error(`第 ${i+1} 条网络异常:`, e.message);
+                process.exit(1);
+              }
+              console.log(`  -> HTTP ${r.status}`, JSON.stringify(data).slice(0,500));
+              if(data.code!==200){ console.error(`第 ${i+1} 条失败:`, data.msg||data.raw||JSON.stringify(data)); process.exit(1); }
+              okCount++;
+              if(i < chunks.length-1) await new Promise(r=>setTimeout(r,800));
+            }
+            console.log(`推送完成 ${okCount}/${chunks.length}`);
             NODE
           fi
 
@@ -295,4 +394,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: daily-scan-result
-          path: scan_result.json
+          path: |
+            scan_result.json
+            brief.html
+            chunks.json
