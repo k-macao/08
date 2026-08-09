@@ -42,13 +42,24 @@ document.querySelector('#push').onclick=async()=>{
   const token=document.querySelector('#token').value.trim();
   if(!token)return alert('请输入 PushPlus Token');
   const items=last.map((x,i)=>x.error?`<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`:`<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`).join('');
-  const content=`<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析</h2><p style="color:#666;font-size:13px;">作者：章鱼 AI · 主动式多大模型混合调用 · 智能分析全网境内外有价值动态资讯</p><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间） · 共 ${last.length} 条</p>${items}<p style="color:#999;font-size:12px;">© 章鱼 AI·全景分析 · 仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
+  const baseContent=`<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析</h2><p style="color:#666;font-size:13px;">作者：章鱼 AI · 主动式多大模型混合调用 · 智能分析全网境内外有价值动态资讯</p><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间） · 共 ${last.length} 条</p>${items}<p style="color:#999;font-size:12px;">© 章鱼 AI·全景分析 · 仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
   const b=document.querySelector('#push');b.disabled=true;
+  const setState=t=>{const s=document.querySelector('#state');if(s)s.textContent=t;};
   try{
+    setState('AI 总结中…');
+    // 先调 /api/summarize 拿 AI 主题聚类总结 HTML（失败自动降级，content 仍可推送）
+    let summaryHtml='';
+    try{
+      const sr=await fetch('/api/summarize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:last})});
+      const sd=await sr.json();
+      if(sr.ok&&sd&&sd.ok&&sd.summaryHtml)summaryHtml=sd.summaryHtml;
+    }catch(_){ /* 降级：忽略 AI 失败 */ }
+    const content = summaryHtml ? (summaryHtml + baseContent) : baseContent;
+    setState('推送中…');
     const r=await fetch('/api/push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,title:'章鱼 AI·全景分析 '+new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),content,template:'html',channel:'wechat'})});
     const d=await r.json();
     if(!r.ok||!d.ok)throw Error(d.msg||d.error||('HTTP '+r.status));
     const sent=d.sentParts||1,total=d.totalParts||1;
-    alert(`已推送到微信（PushPlus）。\n发送 ${sent}/${total} 条`+(total>1?`（超过 10 万字自动分条发送）`:'')+(d.data?'\n首条流水号：'+d.data:''))
-  }catch(e){alert('推送失败：'+e.message+'\n\n常见原因：\n1. Token 错误或未实名认证（2024-08-01 起未实名无法发送）\n2. PushPlus 服务器临时不可用或触发频率限制\n3. 网络异常')}finally{b.disabled=false}
+    alert(`已推送到微信（PushPlus）。\n${summaryHtml?'🧠 已附 AI 主题聚类总结\n':''}发送 ${sent}/${total} 条`+(total>1?`（超过 10 万字自动分条发送）`:'')+(d.data?'\n首条流水号：'+d.data:''))
+  }catch(e){alert('推送失败：'+e.message+'\n\n常见原因：\n1. Token 错误或未实名认证（2024-08-01 起未实名无法发送）\n2. PushPlus 服务器临时不可用或触发频率限制\n3. 网络异常')}finally{b.disabled=false;setState('待命');}
 };
