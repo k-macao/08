@@ -6,7 +6,9 @@
 
 ```bash
 npm install
-npm start
+npm run check # 语法检查
+npm test      # 运行测试/语法检查
+npm start     # 启动服务
 # 打开 http://localhost:3000
 ```
 

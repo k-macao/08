@@ -1,1 +1,10 @@
-{"name":"octopus-ai-panorama","version":"1.0.0","type":"module","scripts":{"start":"node server.js"}}
+{
+  "name": "octopus-ai-panorama",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check app.js && node --check ai.mjs",
+    "test": "npm run check"
+  }
+}
