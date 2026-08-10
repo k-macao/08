@@ -630,6 +630,16 @@ const server = http.createServer(async (req,res) => {
     json(res, out.ok ? 200 : 502, { pushed: out.ok, ...out });
   } catch(e){ json(res,500,{error:e.message}); } return;
  }
- try { let file = u.pathname === '/' ? 'index.html' : u.pathname.slice(1); if (!/^(index\.html|app\.js|style\.css)$/.test(file)) throw Error(); const type=file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html';res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});res.end(await readFile(file)); } catch {res.writeHead(404);res.end('Not found');}
+ try {
+  let file = u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(1));
+  if (!/^(index\.html|index\.optimized\.html|app\.js|style\.css|style\.optimized\.css|output\.mock\.html)$/.test(file)) throw Error();
+  const data = await readFile(file);
+  const type=file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html';
+  res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
+  res.end(data);
+ } catch {
+  if (!res.headersSent) { res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'}); res.end('Not found'); }
+  else { try{res.end();}catch{} }
+ }
 });
 server.listen(PORT,'0.0.0.0',()=>console.log(`Octopus AI Panorama on ${PORT}`));
