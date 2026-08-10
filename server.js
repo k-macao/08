@@ -632,7 +632,7 @@ const server = http.createServer(async (req,res) => {
  }
  try {
   let file = u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(1));
-  if (!/^(index\.html|index\.optimized\.html|app\.js|style\.css|style\.optimized\.css|output\.mock\.html)$/.test(file)) throw Error();
+  if (!/^(index\.html|index\.optimized\.html|app\.js|style\.css|style\.optimized\.css|output\.mock\.html|push\.preview\.html)$/.test(file)) throw Error();
   const data = await readFile(file);
   const type=file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html';
   res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});
