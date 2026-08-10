@@ -210,20 +210,20 @@ export function renderSummaryHtml(summary, meta = {}) {
   const stamp = meta.generatedAt || new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Macau' });
   const itemCount = meta.itemCount || 0;
   const li = (arr, color) => (arr && arr.length)
-    ? `<ul style="margin:8px 0 0 18px;padding:0;color:#eef0ff;font-family:monospace,'Noto Sans SC',sans-serif;font-size:13px;line-height:1.7;">${arr.map(x => `<li style="margin:5px 0;padding:4px 8px;background:rgba(255,255,255,.04);border-left:3px solid ${color};list-style:none;box-shadow:1px 1px 0 rgba(0,0,0,.4);">${esc(x)}</li>`).join('')}</ul>`
+    ? `<ul style="margin:8px 0 0 18px;padding:0;color:#eef0ff;font-family:monospace,'Noto Sans SC',sans-serif;font-size:12px;line-height:1.7;">${arr.map(x => `<li style="margin:5px 0;padding:4px 8px;background:rgba(255,255,255,.04);border-left:3px solid ${color};list-style:none;box-shadow:1px 1px 0 rgba(0,0,0,.4);">${esc(x)}</li>`).join('')}</ul>`
     : '<p style="margin:8px 0 0;color:#6f77ad;font-family:monospace,sans-serif;font-size:12px;">（无） · NO DATA</p>';
   return [
     '<section style="margin:16px 0;padding:0;border:3px solid #00ffd1;background:#0a0a1f;box-shadow:4px 4px 0 #ff2e93,0 0 14px rgba(0,255,209,.22);overflow:hidden;">',
       '<div style="height:4px;background:repeating-linear-gradient(90deg,#00ffd1 0 12px,#ffe600 12px 24px,#ff2e93 24px 36px);box-shadow:0 0 8px #00ffd1;"></div>',
       '<div style="padding:14px 14px 8px;background:linear-gradient(180deg,rgba(0,255,209,.12) 0,transparent 85%);border-bottom:2px dashed #2a2a66;">',
         '<div style="font-family:monospace,sans-serif;font-size:11px;letter-spacing:1px;color:#ffe600;font-weight:800;">▸ TRANSMISSION DECK // AI BATTLE ANALYSIS // ARCADE LEAGUE</div>',
-        `<div style="margin:6px 0 0;font-family:monospace,sans-serif;font-size:18px;font-weight:900;color:#fff;letter-spacing:.5px;text-shadow:2px 2px 0 #7b2cff;">🧠 章鱼 AI · 主题聚类总结 <span style="background:#ff2e93;color:#fff;padding:2px 6px;font-size:10px;vertical-align:middle;box-shadow:2px 2px 0 #000;letter-spacing:.5px;">STAGE BOSS</span></div>`,
+        `<div style="margin:6px 0 0;font-family:monospace,sans-serif;font-size:15px;font-weight:900;color:#fff;letter-spacing:.5px;text-shadow:2px 2px 0 #7b2cff;">🧠 章鱼 AI · 主题聚类总结 <span style="background:#ff2e93;color:#fff;padding:2px 6px;font-size:10px;vertical-align:middle;box-shadow:2px 2px 0 #000;letter-spacing:.5px;">STAGE BOSS</span></div>`,
         `<div style="margin:6px 0 0;color:#9aa0c7;font-family:monospace,sans-serif;font-size:11px;">生成时间：${esc(stamp)}（澳门时间）· 基于 ${itemCount} 条情报 · RANK SSS · HP 100%</div>`,
       '</div>',
       '<div style="padding:14px;">',
         '<div style="border:2px solid #ffe600;background:rgba(255,230,0,.08);padding:10px;box-shadow:2px 2px 0 #000;">',
           '<div style="font-family:monospace,sans-serif;font-size:11px;color:#ffe600;font-weight:800;letter-spacing:.8px;">▶ TODAY MAIN QUEST / 今日主线</div>',
-          `<p style="margin:8px 0 0;color:#eef0ff;line-height:1.85;white-space:pre-wrap;word-break:break-word;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:14.5px;">${esc(summary.main)}</p>`,
+          `<p style="margin:8px 0 0;color:#eef0ff;line-height:1.85;white-space:pre-wrap;word-break:break-word;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:13px;">${esc(summary.main)}</p>`,
         '</div>',
         '<div style="margin:14px 0 0;color:#00ffd1;font-family:monospace,sans-serif;font-size:13px;font-weight:800;letter-spacing:.5px;">▦ 热点话题 · HOT TOPICS <span style="color:#6f77ad;font-size:10px;font-weight:400;">HP 88%</span></div>',
         li(summary.hotTopics, '#00ffd1'),

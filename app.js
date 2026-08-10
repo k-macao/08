@@ -146,7 +146,7 @@ document.querySelector('#push').onclick=async()=>{
   const items=last.map((x,i)=>x.error?
     `<section style="margin:12px 0;padding:12px 12px 12px 14px;border:2px solid #ff5e7e;border-left:6px solid #ff2e93;background:linear-gradient(180deg,#1a0f2a 0,#120a1f 100%);box-shadow:3px 3px 0 #000;">
       <div style="font-family:monospace,sans-serif;font-size:10px;color:#ff5e7e;font-weight:800;letter-spacing:.5px;">● SCAN ERROR · P1 FAILED · 扫描异常</div>
-      <b style="display:block;margin:6px 0 0;color:#ffb3c6;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:14px;line-height:1.6;">[${i+1}] ${esc(x.channel)} · 未完成读取</b>
+      <b style="display:block;margin:6px 0 0;color:#ffb3c6;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:12px;line-height:1.6;">[${i+1}] ${esc(x.channel)} · 未完成读取</b>
       <p style="margin:6px 0 0;color:#d6b8c7;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:12px;line-height:1.7;">${esc(x.error)}</p>
       <div style="margin:8px 0 0;height:2px;background:repeating-linear-gradient(90deg,#ff2e93 0 6px,transparent 6px 10px);opacity:.6;"></div>
     </section>`
@@ -159,7 +159,7 @@ document.querySelector('#push').onclick=async()=>{
         </div>
       </div>
       <div style="padding:10px 12px 12px;">
-        <h3 style="margin:0;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:15px;line-height:1.5;">
+        <h3 style="margin:0;font-family:sans-serif,'Noto Sans SC',sans-serif;font-size:13px;line-height:1.5;">
           <a href="${esc(x.url)}" style="color:#ffe600;text-decoration:none;font-weight:800;text-shadow:0 0 6px rgba(255,230,0,.25);word-break:break-all;">${i+1}. ${esc(x.title)}</a>
           <span style="font-family:monospace,sans-serif;font-size:10px;color:#706b9d;margin-left:6px;white-space:nowrap;">▶ PLAY</span>
         </h3>
@@ -173,7 +173,7 @@ document.querySelector('#push').onclick=async()=>{
     <div style="padding:14px;background:linear-gradient(180deg,#13164a 0,#0f1338 100%);border:3px solid #4a458f;box-shadow:4px 4px 0 #1c1a4d;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <div style="flex:1;min-width:220px;">
         <div style="font-family:monospace,sans-serif;font-size:10px;letter-spacing:1px;color:#ffe600;font-weight:800;">◈ OCTOPUS AI PANORAMA // ARCADE LEAGUE v0.9 · CRT ON</div>
-        <div style="margin:4px 0 0;font-family:monospace,sans-serif;font-size:20px;font-weight:900;color:#fff;letter-spacing:.5px;text-shadow:2px 2px 0 #ff2e93,0 0 10px rgba(123,44,255,.4);">章鱼 AI·全景分析 <span style="background:#00ffd1;color:#07071f;padding:1px 6px;font-size:10px;vertical-align:middle;box-shadow:2px 2px 0 #000;letter-spacing:.5px;">LIVE</span></div>
+        <div style="margin:4px 0 0;font-family:monospace,sans-serif;font-size:15px;font-weight:900;color:#fff;letter-spacing:.5px;text-shadow:2px 2px 0 #ff2e93,0 0 10px rgba(123,44,255,.4);">章鱼 AI·全景分析 <span style="background:#00ffd1;color:#07071f;padding:1px 6px;font-size:10px;vertical-align:middle;box-shadow:2px 2px 0 #000;letter-spacing:.5px;">LIVE</span></div>
         <div style="margin:4px 0 0;color:#9aa0c7;font-family:monospace,sans-serif;font-size:11px;line-height:1.6;">作者：<b style="color:#ffe600;">章鱼 AI</b> · 主动式多大模型混合调用 · 智能分析全网境内外有价值动态资讯</div>
       </div>
       <div style="text-align:center;border:2px solid #ffe600;background:#1a1500;padding:8px 10px;box-shadow:3px 3px 0 #000;flex-shrink:0;">
