@@ -38,7 +38,7 @@ npm start     # 启动服务
    - Secret: 你的 DeepSeek API key（[获取地址](https://platform.deepseek.com/api_keys)）
 2. 进入 Actions →「AI 扫描」→ Run workflow
 3. 可选项：
-   - `channels`：要扫描的频道，用 `|` 分隔，留空或填 `ALL` 则默认扫描全部 60 个频道
+   - `channels`：要扫描的频道，用 `|` 分隔，留空或填 `ALL` 则默认扫描全部 56 个频道
    - `push_to_wechat`：勾选即扫描完成后自动推送
    - `pushplus_token`：也可在此临时填入（会优先于 Secret）
    - `enable_ai_summary`：默认 `true`，扫描完成后会用 AI 对所有视频字幕做主题聚类总结，拼到推送内容顶部
@@ -47,7 +47,7 @@ npm start     # 启动服务
 
 ## 注意事项
 
-- 默认扫描全部 60 个频道，每个频道抓取最新 3 条视频
+- 默认扫描全部 56 个频道，每个频道抓取最新 3 条视频
 - 仅读取 YouTube 公开搜索结果与公开中文字幕，无字幕视频保留链接并标注
 - 出现「台湾／台灣」时统一显示为「中国台湾」
 - 推送内容仅作研究参考，不构成投资建议
@@ -76,7 +76,7 @@ PushPlus 单条消息内容上限约 10 万字。本项目在 `server.js` 和 CI
 
 - **未配置 `DEEPSEEK_API_KEY` / 前端未启用**：跳过总结，按原样推送
 - **AI 调用失败 / 超时 / 返回非 JSON**：自动降级，按原样推送（不会阻断）
-- **每条字幕最多取 4000 字喂给 AI**，避免 token 爆炸（60 频道 × 3 视频 ≈ 180 条安全可控）
+- **每条字幕最多取 4000 字喂给 AI**，避免 token 爆炸（56 频道 × 3 视频 ≈ 168 条安全可控）
 - **任何 OpenAI 兼容 API 都可替换**（DeepSeek / OpenAI / 智谱 / 通义 / 任何 base_url），在环境变量里改 `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` / `OPENAI_API_KEY` 即可
 
 ### 本地启用
