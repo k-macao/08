@@ -186,7 +186,7 @@ jobs:
           }
 
           const content = (summaryHtml || '') + `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 全景情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
-          const title = `章鱼 AI·全景分析 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+          const title = `章鱼 AI·全景分析全球简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
           fs.writeFileSync('brief.html', content);
 
           const PUSHPLUS_MAX_CHARS = 90000;
@@ -399,5 +399,7 @@ jobs:
           name: daily-scan-result
           path: |
             scan_result.json
+            brief.html
+            chunks.json
             brief.html
             chunks.json
