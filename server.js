@@ -378,7 +378,7 @@ async function scan(names) {
    const videos = await searchChannel(name);
    for (const video of videos) {
     const transcript = await captions(video.id);
-    results.push({...video, channel:name, transcript, status:transcript ? '字幕已读取（多字幕方向命中）' : '未提供公开中文字幕（已自动尝试多字幕方向：zh-Hant/zh-Hans/zh/list/watch/翻译）'});
+    results.push({...video, channel:name, transcript, status:transcript ? '字幕已读取' : '无公开中文字幕'});
    }
   } catch (e) { results.push({channel:name, error:e.message}); }
   // 频道间礼貌间隔，降低限流概率
