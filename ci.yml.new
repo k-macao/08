@@ -150,7 +150,7 @@ jobs:
             })"
           echo "$SCAN_RESP" > scan_result.json
 
-          # 生成 HTML 并按 server.js 同款逻辑分条推送到 PushPlus
+          # 生成 Style A「电子杂志 × 电子墨水」HTML 并分条推送到 PushPlus
           node << 'NODE'
           import fs from 'node:fs';
           const scan = JSON.parse(fs.readFileSync('scan_result.json','utf8'));
@@ -158,8 +158,30 @@ jobs:
 
           const esc = s => String(s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
           const sections = items.map((x,i)=> x.error
-            ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
-            : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
+            ? `<section style="margin:10px 0;padding:10px 12px;border:1.5px solid #000000;border-left:4px solid #000000;background:#ffffff;box-shadow:2px 2px 0 #000000;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                  <span style="background:#000000;color:#00ff66;padding:1px 5px;font-size:9.5px;font-weight:700;font-family:monospace,sans-serif;">SCAN ERROR</span>
+                  <span style="font-family:monospace,sans-serif;font-size:10.5px;font-weight:700;color:#111111;">[${i+1}] ${esc(x.channel)} · 未完成读取</span>
+                </div>
+                <p style="margin:4px 0 0;color:#444444;font-size:11.5px;line-height:1.6;">${esc(x.error)}</p>
+              </section>`
+            : `<section style="margin:10px 0;padding:12px;border:1.5px solid #111111;background:#ffffff;box-shadow:2px 2px 0 #000000;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;border-bottom:1px solid #f0f0f0;padding-bottom:5px;">
+                  <div style="font-family:monospace,sans-serif;font-size:10.5px;color:#111111;font-weight:700;flex:1;word-break:break-all;">
+                    <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;margin-right:4px;">#${i+1}</span>
+                    ${esc(x.channel)} <span style="color:#666666;font-weight:normal;">· ${esc(x.published)}</span>
+                  </div>
+                  <div style="font-family:monospace,sans-serif;font-size:9.5px;color:#555555;flex-shrink:0;">${esc(x.status||'')}</div>
+                </div>
+                <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.45;font-weight:700;font-family:'Noto Serif SC',Georgia,serif,sans-serif;">
+                  <a href="${esc(x.url)}" style="color:#111111;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">${esc(x.title)}</a>
+                </h3>
+                ${x.transcript ? `
+                  <div style="margin-top:8px;padding:8px 10px;background:#f5f6f8;border:1px solid #e2e4e8;border-left:3.5px solid #000000;color:#111111;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
+                ` : `
+                  <div style="margin-top:8px;padding:6px 8px;background:#f5f6f8;border:1px dashed #cccccc;color:#777777;font-size:11px;font-style:italic;">该视频未提供公开中文字幕，请点击标题查看原视频。</div>
+                `}
+              </section>`
           ).join('');
 
           // AI 总结（可选）：DeepSeek 主题聚类；失败自动降级，content 仍可推送
@@ -185,21 +207,77 @@ jobs:
             console.log('ℹ️ 未启用 AI 总结（ENABLE_AI_SUMMARY 或 DEEPSEEK_API_KEY 缺失）');
           }
 
-          const content = (summaryHtml || '') + `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 全景情报简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
-          const title = `章鱼 AI·全景分析 财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+          const baseContent = `<div style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Serif SC',Georgia,sans-serif;background-color:#eeeff2;color:#111111;padding:16px 12px;font-size:12px;line-height:1.65;max-width:680px;margin:0 auto;box-sizing:border-box;">
+            
+            <!-- 杂志页眉 / Top Issue Bar -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1.5px solid #111111;font-family:monospace,sans-serif;font-size:10px;color:#111111;margin-bottom:12px;letter-spacing:0.5px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:7px;height:7px;background:#00ff66;border:1.5px solid #000000;"></span>
+                <span style="font-weight:700;">OCTOPUS AI // 全景分析</span>
+              </div>
+              <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;font-size:9px;">STYLE A · 电子杂志 × 电子墨水</span>
+            </div>
+
+            <!-- 封面看板 / Title Section -->
+            <div style="background:#0a0a0b;border:2px solid #000000;padding:14px 14px;margin-bottom:12px;box-shadow:3px 3px 0 #000000;">
+              <div style="font-family:monospace,sans-serif;font-size:9.5px;color:#00ff66;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">
+                ◈ MULTI-MODEL INTELLIGENCE REPORT
+              </div>
+              <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:0.5px;line-height:1.25;font-family:'Noto Serif SC',Georgia,serif,sans-serif;">
+                章鱼 AI 全景分析
+              </h1>
+              <div style="margin-top:6px;font-size:11.5px;color:#ffffff;line-height:1.55;font-weight:500;">
+                全网 AI 调研境内境外数据，由多个大模型混合部署 。
+              </div>
+              <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #333333;display:flex;flex-wrap:gap:6px;align-items:center;font-family:monospace,sans-serif;font-size:10px;color:#aaaaaa;">
+                <span style="background:#000000;color:#00ff66;padding:1px 5px;border:1px solid #00ff66;font-weight:700;">多模型协同</span>
+                <span style="color:#ffffff;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
+              </div>
+            </div>
+
+            <!-- 简报状态条 -->
+            <div style="background:#ffffff;border:1.5px solid #111111;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:monospace,sans-serif;font-size:10px;color:#111111;box-shadow:2px 2px 0 #000000;">
+              <div><span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="font-weight:700;">共 ${items.length} 条视频情报</span></div>
+              <div>规范：台湾/台灣 统一规范为 <span style="background:#000000;color:#00ff66;padding:1px 4px;font-weight:700;">中国台湾</span></div>
+            </div>
+
+            <!-- 视频情报流 -->
+            ${sections}
+
+            <!-- 尾页宣言 / Editorial Manifesto -->
+            <div style="margin-top:16px;border:1.5px solid #111111;background:#ffffff;padding:14px;box-shadow:3px 3px 0 #000000;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:monospace,sans-serif;font-size:9.5px;border-bottom:1px solid #eeeeee;padding-bottom:6px;">
+                <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;">EDITORIAL MANIFESTO</span>
+                <span style="color:#666666;">章鱼 AI · 全景视野</span>
+              </div>
+              <div style="font-size:12px;font-weight:700;color:#111111;line-height:1.6;margin-bottom:8px;">
+                作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
+              </div>
+              <div style="font-size:11.5px;color:#222222;line-height:1.75;text-align:justify;border-left:3px solid #000000;padding:8px 10px;background:#f5f6f8;margin-bottom:10px;">
+                全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+              </div>
+              <div style="font-family:monospace,sans-serif;font-size:9px;color:#888888;text-align:center;border-top:1px solid #eeeeee;padding-top:6px;">
+                STYLE A「电子杂志 × 电子墨水」· 微信竖版阅读版 · 仅供研究参考
+              </div>
+            </div>
+
+          </div>`;
+
+          const content = (summaryHtml || '') + baseContent;
+          const title = '章鱼 AI 全景分析';
           fs.writeFileSync('brief.html', content);
 
           const PUSHPLUS_MAX_CHARS = 90000;
           function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
-            const parts=[]; const sections = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
+            const parts=[]; const secs = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
             const flush=()=>{ if(buf.trim()){ parts.push(buf); buf=''; } };
             const splitOversizedSection=(sec,max)=>{
               const out=[]; const headMatch=sec.match(/^<section\b[^>]*>/i); const head=headMatch?headMatch[0]:'<section>'; const tailMatch=sec.match(/<\/section>\s*$/i); const tail=tailMatch?tailMatch[0]:'</section>'; const headEnd=headMatch?headMatch[0].length:9; const inner=sec.slice(headEnd, sec.length-tail.length); const pieceBudget=max-Buffer.byteLength(head+tail,'utf8');
               if(pieceBudget<=0){ let s=sec; while(Buffer.byteLength(s,'utf8')>max){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=max) lo=mid; else hi=mid-1;} out.push(s.slice(0,lo)); s=s.slice(lo);} if(s) out.push(s); return out; }
               const chunks=inner.split(/(?=<\/p>|<p\b|<br\s*\/?>|。)/i); let cur='';
-              for(const c of chunks){ if(Buffer.byteLength(c,'utf8')>pieceBudget){ if(cur){ out.push(head+cur+tail); cur=''; } let s=c; while(Buffer.byteLength(s,'utf8')>pieceBudget){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=pieceBudget) lo=mid; else hi=mid-1;} let cut=lo; const win=s.slice(Math.max(0,lo-200),lo); const m=win.match(/[。！？\n]/g); if(m) cut=lo-200+win.lastIndexOf(m[m.length-1])+1; out.push(head+s.slice(0,cut)+tail); s=s.slice(cut);} if(s) cur=s; } else if(Buffer.byteLength(cur+c,'utf8')>pieceBudget && cur){ out.push(head+cur+tail); cur=c; } else cur+=c; } if(cur) out.push(head+cur+tail); return out;
+              for(const c of chunks){ if(Buffer.byteLength(c,'utf8')>pieceBudget){ if(cur){ out.push(head+cur+tail); cur=''; } let s=c; while(Buffer.byteLength(s,'utf8')>pieceBudget){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=pieceBudget) lo=mid; else hi=mid-1;} let cut=lo; const win=s.slice(Math.max(0,lo-200),lo); const m=win.match(/[。！？\n]/g); if(m) cut=lo-200+win.lastIndexOf(m[m.length-1])+1; out.push(head+s.slice(0,cut)+tail); s=s.slice(cut);} if(s) cur=s; } else if(Buffer.byteLength(cur+c,'utf8')>pieceBudget && cur){ out.push(head+cur+tail); cur=c; } else { cur+=c; } } if(cur) out.push(head+cur+tail); return out;
             };
-            for(const sec of sections){ if(Buffer.byteLength(sec,'utf8')>maxChars){ flush(); for(const p of splitOversizedSection(sec,maxChars)) parts.push(p); continue; } if(Buffer.byteLength(buf+sec,'utf8')>maxChars) flush(); buf+=sec; } flush(); return parts;
+            for(const sec of secs){ if(Buffer.byteLength(sec,'utf8')>maxChars){ flush(); for(const p of splitOversizedSection(sec,maxChars)) parts.push(p); continue; } if(Buffer.byteLength(buf+sec,'utf8')>maxChars) flush(); buf+=sec; } flush(); return parts;
           }
 
           let header='', footer='', bodyOnly=content;
@@ -238,19 +316,20 @@ jobs:
 
           kill $SERVER_PID 2>/dev/null || true
 
-      - name: Upload brief artifact
+      - name: Upload scan artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: octopus-ai-brief
+          name: daily-scan-result
           path: |
             scan_result.json
             brief.html
             chunks.json
 
-  # ─── 定时任务：每日自动扫描 + 推送 ───
-  daily-scan:
+  # ─── 每日定时扫描 + 自动推送 ───
+  daily-scan-and-push:
     if: ${{ github.event_name == 'schedule' }}
+    needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -303,7 +382,7 @@ jobs:
             })"
           echo "$SCAN_RESP" > scan_result.json
 
-          # 如果有 token 则推送（与 scan-and-push 同一套分块逻辑，全量推送可能超过 10 万字）
+          # 如果有 token 则推送
           if [ -n "$PUSHPLUS_TOKEN" ]; then
             node << 'NODE'
             import fs from 'node:fs';
@@ -311,8 +390,30 @@ jobs:
             const items = scan.items || [];
             const esc = s => String(s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
             const sections = items.map((x,i)=> x.error
-              ? `<section style="margin:12px 0;padding:10px;border-left:3px solid #e74c3c;background:#fdf0ef;"><b style="color:#c0392b">[${i+1}] ${esc(x.channel)} · 扫描异常</b><p style="margin:6px 0 0;color:#555;">${esc(x.error)}</p></section>`
-              : `<section style="margin:14px 0;padding:12px;border:1px solid #e3e8ee;border-radius:6px;background:#fafbfc;"><div style="font-size:12px;color:#8a94a6;">${esc(x.channel)} · ${esc(x.published)} · ${esc(x.status||'')}</div><h3 style="margin:6px 0;"><a href="${esc(x.url)}" style="color:#1a4d8f;text-decoration:none;">${i+1}. ${esc(x.title)}</a></h3>${x.transcript?`<p style="margin:8px 0 0;color:#333;white-space:pre-wrap;">${esc(x.transcript)}</p>`:`<p style="margin:8px 0 0;color:#888;">该视频未提供公开中文字幕，请点击标题查看原视频。</p>`}</section>`
+              ? `<section style="margin:10px 0;padding:10px 12px;border:1.5px solid #000000;border-left:4px solid #000000;background:#ffffff;box-shadow:2px 2px 0 #000000;">
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                    <span style="background:#000000;color:#00ff66;padding:1px 5px;font-size:9.5px;font-weight:700;font-family:monospace,sans-serif;">SCAN ERROR</span>
+                    <span style="font-family:monospace,sans-serif;font-size:10.5px;font-weight:700;color:#111111;">[${i+1}] ${esc(x.channel)} · 未完成读取</span>
+                  </div>
+                  <p style="margin:4px 0 0;color:#444444;font-size:11.5px;line-height:1.6;">${esc(x.error)}</p>
+                </section>`
+              : `<section style="margin:10px 0;padding:12px;border:1.5px solid #111111;background:#ffffff;box-shadow:2px 2px 0 #000000;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;border-bottom:1px solid #f0f0f0;padding-bottom:5px;">
+                    <div style="font-family:monospace,sans-serif;font-size:10.5px;color:#111111;font-weight:700;flex:1;word-break:break-all;">
+                      <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;margin-right:4px;">#${i+1}</span>
+                      ${esc(x.channel)} <span style="color:#666666;font-weight:normal;">· ${esc(x.published)}</span>
+                    </div>
+                    <div style="font-family:monospace,sans-serif;font-size:9.5px;color:#555555;flex-shrink:0;">${esc(x.status||'')}</div>
+                  </div>
+                  <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.45;font-weight:700;font-family:'Noto Serif SC',Georgia,serif,sans-serif;">
+                    <a href="${esc(x.url)}" style="color:#111111;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">${esc(x.title)}</a>
+                  </h3>
+                  ${x.transcript ? `
+                    <div style="margin-top:8px;padding:8px 10px;background:#f5f6f8;border:1px solid #e2e4e8;border-left:3.5px solid #000000;color:#111111;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
+                  ` : `
+                    <div style="margin-top:8px;padding:6px 8px;background:#f5f6f8;border:1px dashed #cccccc;color:#777777;font-size:11px;font-style:italic;">该视频未提供公开中文字幕，请点击标题查看原视频。</div>
+                  `}
+                </section>`
             ).join('');
 
             // AI 总结（可选）：仅当配置了 DEEPSEEK_API_KEY 才启用
@@ -338,21 +439,77 @@ jobs:
               console.log('ℹ️ 未配置 DEEPSEEK_API_KEY，跳过 AI 总结');
             }
 
-            const content = (summaryHtml || '') + `<h2 style="border-bottom:2px solid #1a4d8f;padding-bottom:8px;color:#1a4d8f;">章鱼 AI·全景分析 · 每日财经简报</h2><p style="color:#666;font-size:13px;">抓取时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Macau'})}（澳门时间）</p>${sections}<p style="color:#999;font-size:12px;">仅作研究参考，不构成投资建议。数据来源：YouTube 公开页面。</p>`;
-            const title = `📰 章鱼 AI·全景分析 · 每日财经简报 ${new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+            const baseContent = `<div style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Serif SC',Georgia,sans-serif;background-color:#eeeff2;color:#111111;padding:16px 12px;font-size:12px;line-height:1.65;max-width:680px;margin:0 auto;box-sizing:border-box;">
+              
+              <!-- 杂志页眉 / Top Issue Bar -->
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1.5px solid #111111;font-family:monospace,sans-serif;font-size:10px;color:#111111;margin-bottom:12px;letter-spacing:0.5px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="display:inline-block;width:7px;height:7px;background:#00ff66;border:1.5px solid #000000;"></span>
+                  <span style="font-weight:700;">OCTOPUS AI // 全景分析</span>
+                </div>
+                <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;font-size:9px;">STYLE A · 电子杂志 × 电子墨水</span>
+              </div>
+
+              <!-- 封面看板 / Title Section -->
+              <div style="background:#0a0a0b;border:2px solid #000000;padding:14px 14px;margin-bottom:12px;box-shadow:3px 3px 0 #000000;">
+                <div style="font-family:monospace,sans-serif;font-size:9.5px;color:#00ff66;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">
+                  ◈ MULTI-MODEL INTELLIGENCE REPORT
+                </div>
+                <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:0.5px;line-height:1.25;font-family:'Noto Serif SC',Georgia,serif,sans-serif;">
+                  章鱼 AI 全景分析
+                </h1>
+                <div style="margin-top:6px;font-size:11.5px;color:#ffffff;line-height:1.55;font-weight:500;">
+                  全网 AI 调研境内境外数据，由多个大模型混合部署 。
+                </div>
+                <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #333333;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:monospace,sans-serif;font-size:10px;color:#aaaaaa;">
+                  <span style="background:#000000;color:#00ff66;padding:1px 5px;border:1px solid #00ff66;font-weight:700;">多模型协同</span>
+                  <span style="color:#ffffff;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
+                </div>
+              </div>
+
+              <!-- 简报状态条 -->
+              <div style="background:#ffffff;border:1.5px solid #111111;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:monospace,sans-serif;font-size:10px;color:#111111;box-shadow:2px 2px 0 #000000;">
+                <div><span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="font-weight:700;">共 ${items.length} 条视频情报</span></div>
+                <div>规范：台湾/台灣 统一规范为 <span style="background:#000000;color:#00ff66;padding:1px 4px;font-weight:700;">中国台湾</span></div>
+              </div>
+
+              <!-- 视频情报流 -->
+              ${sections}
+
+              <!-- 尾页宣言 / Editorial Manifesto -->
+              <div style="margin-top:16px;border:1.5px solid #111111;background:#ffffff;padding:14px;box-shadow:3px 3px 0 #000000;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:monospace,sans-serif;font-size:9.5px;border-bottom:1px solid #eeeeee;padding-bottom:6px;">
+                  <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;">EDITORIAL MANIFESTO</span>
+                  <span style="color:#666666;">章鱼 AI · 全景视野</span>
+                </div>
+                <div style="font-size:12px;font-weight:700;color:#111111;line-height:1.6;margin-bottom:8px;">
+                  作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
+                </div>
+                <div style="font-size:11.5px;color:#222222;line-height:1.75;text-align:justify;border-left:3px solid #000000;padding:8px 10px;background:#f5f6f8;margin-bottom:10px;">
+                  全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+                </div>
+                <div style="font-family:monospace,sans-serif;font-size:9px;color:#888888;text-align:center;border-top:1px solid #eeeeee;padding-top:6px;">
+                  STYLE A「电子杂志 × 电子墨水」· 微信竖版阅读版 · 仅供研究参考
+                </div>
+              </div>
+
+            </div>`;
+
+            const content = (summaryHtml || '') + baseContent;
+            const title = '章鱼 AI 全景分析';
             fs.writeFileSync('brief.html', content);
 
             const PUSHPLUS_MAX_CHARS = 90000;
             function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
-              const parts=[]; const sections = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
+              const parts=[]; const secs = html.split(/(?=<section\b)/i).filter(s=>s.trim()); let buf='';
               const flush=()=>{ if(buf.trim()){ parts.push(buf); buf=''; } };
               const splitOversizedSection=(sec,max)=>{
                 const out=[]; const headMatch=sec.match(/^<section\b[^>]*>/i); const head=headMatch?headMatch[0]:'<section>'; const tailMatch=sec.match(/<\/section>\s*$/i); const tail=tailMatch?tailMatch[0]:'</section>'; const headEnd=headMatch?headMatch[0].length:9; const inner=sec.slice(headEnd, sec.length-tail.length); const pieceBudget=max-Buffer.byteLength(head+tail,'utf8');
                 if(pieceBudget<=0){ let s=sec; while(Buffer.byteLength(s,'utf8')>max){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=max) lo=mid; else hi=mid-1;} out.push(s.slice(0,lo)); s=s.slice(lo);} if(s) out.push(s); return out; }
                 const chunks=inner.split(/(?=<\/p>|<p\b|<br\s*\/?>|。)/i); let cur='';
-                for(const c of chunks){ if(Buffer.byteLength(c,'utf8')>pieceBudget){ if(cur){ out.push(head+cur+tail); cur=''; } let s=c; while(Buffer.byteLength(s,'utf8')>pieceBudget){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=pieceBudget) lo=mid; else hi=mid-1;} let cut=lo; const win=s.slice(Math.max(0,lo-200),lo); const m=win.match(/[。！？\n]/g); if(m) cut=lo-200+win.lastIndexOf(m[m.length-1])+1; out.push(head+s.slice(0,cut)+tail); s=s.slice(cut);} if(s) cur=s; } else if(Buffer.byteLength(cur+c,'utf8')>pieceBudget && cur){ out.push(head+cur+tail); cur=c; } else cur+=c; } if(cur) out.push(head+cur+tail); return out;
+                for(const c of chunks){ if(Buffer.byteLength(c,'utf8')>pieceBudget){ if(cur){ out.push(head+cur+tail); cur=''; } let s=c; while(Buffer.byteLength(s,'utf8')>pieceBudget){ let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(Buffer.byteLength(s.slice(0,mid),'utf8')<=pieceBudget) lo=mid; else hi=mid-1;} let cut=lo; const win=s.slice(Math.max(0,lo-200),lo); const m=win.match(/[。！？\n]/g); if(m) cut=lo-200+win.lastIndexOf(m[m.length-1])+1; out.push(head+s.slice(0,cut)+tail); s=s.slice(cut);} if(s) cur=s; } else if(Buffer.byteLength(cur+c,'utf8')>pieceBudget && cur){ out.push(head+cur+tail); cur=c; } else { cur+=c; } } if(cur) out.push(head+cur+tail); return out;
               };
-              for(const sec of sections){ if(Buffer.byteLength(sec,'utf8')>maxChars){ flush(); for(const p of splitOversizedSection(sec,maxChars)) parts.push(p); continue; } if(Buffer.byteLength(buf+sec,'utf8')>maxChars) flush(); buf+=sec; } flush(); return parts;
+              for(const sec of secs){ if(Buffer.byteLength(sec,'utf8')>maxChars){ flush(); for(const p of splitOversizedSection(sec,maxChars)) parts.push(p); continue; } if(Buffer.byteLength(buf+sec,'utf8')>maxChars) flush(); buf+=sec; } flush(); return parts;
             }
 
             let header='', footer='', bodyOnly=content;

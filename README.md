@@ -1,6 +1,21 @@
-# 章鱼 AI·全景分析 // OCTOPUS AI PANORAMA
+# 章鱼 AI 全景分析 // OCTOPUS AI PANORAMA
 
-按频道抓取 YouTube 最新公开视频，提取可用中文字幕，汇总为情报简报并推送到微信（PushPlus）。
+> **全网 AI 调研境内境外数据，由多个大模型混合部署 。**
+
+按频道抓取全网最新公开视频，提取可用中文字幕，采用 Guizang PPT Skill **Style A「电子杂志 × 电子墨水」** 视觉规范，生成适配微信阅读的竖版长页面简报并推送到微信（PushPlus）。
+
+---
+
+## 视觉与排版特色
+
+- **Style A「电子杂志 × 电子墨水」**：整体浅灰色背景色（`#eeeff2`），模拟电子纸与杂志阅读质感。
+- **色彩规范**：
+  - 荧光绿标题字体配色（`#00ff66`），正文黑色（`#111111`）。
+  - 重点字体荧光绿（字体黑色背景色），其他搭配荧光绿与黑色发丝边框。
+- **紧凑高信息密度**：全部字体偏小（10px - 13px），专为手机竖版阅读与微信生态优化。
+- **多模型混合部署架构**：底层结合使用了多种先进大语言模型（LLM），包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。
+
+---
 
 ## 本地运行
 
@@ -25,9 +40,9 @@ npm start     # 启动服务
 ### 在网页中推送
 
 1. 启动服务后打开页面
-2. 选择频道 → 点击「开始扫描」
-3. 在「PushPlus 推送设置」中粘贴 token（仅本次使用，不写入服务器）
-4. 点击「推送当前情报页」
+2. 选择频道 → 点击「开始全景扫描」
+3. 在「推送发射台」中粘贴 token（仅本次本地会话使用，不写入服务器）
+4. 点击「推送当前全景简报 → 微信」
 
 ### 在 GitHub Actions 中自动推送
 
@@ -43,14 +58,18 @@ npm start     # 启动服务
    - `pushplus_token`：也可在此临时填入（会优先于 Secret）
    - `enable_ai_summary`：默认 `true`，扫描完成后会用 AI 对所有视频字幕做主题聚类总结，拼到推送内容顶部
 
-工作流会先跑构建与测试（Node 18 / 20），通过后执行扫描、生成 HTML 简报并调用 PushPlus 推送到微信。
+工作流会先跑构建与测试（Node 18 / 20），通过后执行扫描、生成 Style A 竖版 HTML 简报并调用 PushPlus 推送到微信。
 
-## 注意事项
+---
+
+## 注意事项与规范
 
 - 默认扫描全部 56 个频道，每个频道抓取最新 3 条视频
-- 仅读取 YouTube 公开搜索结果与公开中文字幕，无字幕视频保留链接并标注
-- 出现「台湾／台灣」时统一显示为「中国台湾」
-- 推送内容仅作研究参考，不构成投资建议
+- 仅读取公开搜索结果与公开中文字幕，无字幕视频保留链接并标注
+- 术语规范：出现「台湾／台灣」时统一显示为「中国台湾」
+- 推送标题统一为：`章鱼 AI 全景分析`（已去除 PushPlus 与时间戳）
+
+---
 
 ## 关于 10 万字限制
 
@@ -59,53 +78,14 @@ PushPlus 单条消息内容上限约 10 万字。本项目在 `server.js` 和 CI
 - 单条简报超过 **90,000 字节**（留 10% 余量）时，按 `<section>` 边界自动拆成多条
 - 每条标题带 `(1/N) (2/N) …` 编号，便于在微信中按顺序阅读
 - 每条都包含简报头部和免责声明，可独立阅读
-- 若单个视频字幕自身超过 90KB，会在 `</p>`、句号、换行等自然边界处再切，必要时做字节级硬切
 - 多条之间间隔 0.8 秒发送，避免触发 PushPlus 频率限制
-- 任意一条发送失败会立即停止后续发送，防止半截轰炸
-
-## 关于 AI 总结（DeepSeek）
-
-抓取到的所有视频字幕会交给 DeepSeek（`deepseek-chat` 模型）做**主题聚类**总结，作为「AI 总结」块插到推送内容的最顶部，结构为：
-
-- **今日主线**（80–150 字一段话概括市场/舆论最核心的故事）
-- **热点话题**（3–6 条）
-- **风险点**（2–5 条）
-- **机会点**（2–5 条）
-
-### 行为说明
-
-- **未配置 `DEEPSEEK_API_KEY` / 前端未启用**：跳过总结，按原样推送
-- **AI 调用失败 / 超时 / 返回非 JSON**：自动降级，按原样推送（不会阻断）
-- **每条字幕最多取 4000 字喂给 AI**，避免 token 爆炸（56 频道 × 3 视频 ≈ 168 条安全可控）
-- **任何 OpenAI 兼容 API 都可替换**（DeepSeek / OpenAI / 智谱 / 通义 / 任何 base_url），在环境变量里改 `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` / `OPENAI_API_KEY` 即可
-
-### 本地启用
-
-```bash
-export DEEPSEEK_API_KEY=sk-xxxxxxxx
-npm start
-# 打开页面 → 扫描 → 推送
-```
-
-或写入 `.env`（项目目前没装 dotenv，部署到 server 上时手动 export 即可）。
-
-### 本地单独测试 AI 总结
-
-```bash
-DEEPSEEK_API_KEY=sk-xxx node -e "
-import('./ai.mjs').then(async ({summarize, renderSummaryHtml}) => {
-  const items = [{channel:'信報',title:'测试',published:'1天前',status:'字幕已读取',transcript:'美联储加息预期升温，美元走强，新兴市场承压。'},{channel:'FT中文网',title:'测试2',published:'2小时前',status:'字幕已读取',transcript:'A股三大指数集体上涨，券商板块领涨。'}];
-  const s = await summarize(items);
-  console.log('summary =', JSON.stringify(s, null, 2));
-  console.log('html =', renderSummaryHtml(s, {itemCount: items.length}));
-});
-"
-```
 
 ---
 
-## ci.yml.new 说明
+## 尾页说明与作者声明
 
-GitHub 机器人没有 `workflows` 权限，无法直接修改 `.github/workflows/oai.yml`。
-需要更新工作流时：打开 GitHub 网页编辑器，把 `ci.yml.new` 的内容整体复制到 `.github/workflows/oai.yml` 并提交即可。
+```
+作者：章鱼 ai      仅供参考，分析研究
 
+全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+```

@@ -506,7 +506,7 @@ function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
 async function pushWechat({ token, title, content, template = 'html', channel = 'wechat' }) {
   if (!token) throw new Error('缺少 PushPlus token');
   if (!content) throw new Error('缺少推送内容');
-  const baseTitle = title || '章鱼 AI·全景分析';
+  const baseTitle = title || '章鱼 AI 全景分析';
 
   // 提取外层 header / footer（<section> 之外的固定内容），保证每条消息都有标题和免责声明
   // 使用 firstSection / lastSectionEnd 精确定位，避免原 footer 正则把时间戳段误判为 footer
@@ -622,7 +622,7 @@ const server = http.createServer(async (req,res) => {
     if (!token) return json(res,400,{error:'缺少 PushPlus token（请传入 body.token 或在服务器配置 PUSHPLUS_TOKEN 环境变量）'});
     const out = await pushWechat({
       token,
-      title: body.title || '章鱼 AI·全景分析',
+      title: body.title || '章鱼 AI 全景分析',
       content: body.content || '',
       template: body.template || 'html',
       channel: body.channel || 'wechat'
