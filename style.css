@@ -87,6 +87,8 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   padding: 6px 10px;
   border: 1.5px solid var(--border);
   background: var(--bg-card);
@@ -464,6 +466,8 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   background: var(--bg-subtle);
   border: 1px solid var(--border-light);
   padding: 6px 8px;
@@ -546,15 +550,20 @@ button {
 .item .meta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 4px 8px;
   border-bottom: 1px solid #f0f0f0;
   padding-bottom: 5px;
   margin-bottom: 6px;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ink-secondary);
+  word-break: break-word;
+}
+
+.item .meta > div {
+  min-width: 0;
 }
 
 .item .meta .ch-name {
