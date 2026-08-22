@@ -6,6 +6,17 @@ const box = document.querySelector('#channels');
 const totalEl = document.querySelector('#hero-channels');
 box.innerHTML = sourceNames.map(n => `<label class="channel"><input type="checkbox" value="${n}" checked> <span>${n}</span></label>`).join('');
 const checked = () => [...box.querySelectorAll(':checked')].map(x => x.value);
+// 在 50 条上限内交错排入中英文来源，避免默认全选时英文内容被中文频道完全挤出。
+function balancedChannels(names) {
+  const english = names.filter(n => sourceNames.indexOf(n) >= ENGLISH_SOURCE_START);
+  const chinese = names.filter(n => sourceNames.indexOf(n) < ENGLISH_SOURCE_START);
+  const out = [];
+  for (let i = 0; i < Math.max(english.length, chinese.length); i++) {
+    if (english[i]) out.push(english[i]);
+    if (chinese[i]) out.push(chinese[i]);
+  }
+  return out;
+}
 
 function updatePushMeta() {
   const pc = document.querySelector('#packetCount');
@@ -88,7 +99,7 @@ if (tokenInput) {
 }
 
 document.querySelector('#scan').onclick = async () => {
-  const channels = checked();
+  const channels = balancedChannels(checked());
   if (!channels.length) return alert('请至少选择一个频道 / SELECT AT LEAST ONE CHANNEL');
   const b = document.querySelector('#scan'), p = document.querySelector('#progress'), pt = document.querySelector('#progress-text'), state = document.querySelector('#state');
   b.disabled = true;
