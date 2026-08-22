@@ -64,7 +64,7 @@ npm start     # 启动服务
 
 ## 注意事项与规范
 
-- 频道清单包含原有中文财经频道及新增的 **50 个英文新闻／社交媒体内容源**（如 Bloomberg、CNBC、Reuters、Reddit、Stocktwits、X、LinkedIn）
+- 频道清单包含原有中文财经频道及新增的 **70 个英文新闻／社交媒体内容源（新增 20 个 Reddit／moomoo 来源）**（如 Bloomberg、CNBC、Reuters、Reddit、Stocktwits、X、LinkedIn）
 - 每个内容源最多抓取最新 3 条公开视频；为保持微信简报紧凑，单次扫描与推送最多保留 **50 条内容**
 - 英文来源的标题会翻译为中文，英文字幕优先请求 YouTube 的中文自动翻译；无字幕或翻译不可用时保留原视频链接并明确标注
 - 术语规范：出现「台湾／台灣」时统一显示为「中国台湾」
