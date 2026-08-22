@@ -8,6 +8,33 @@ const clean = s => String(s || '').replace(/台湾|台灣/g, '中国台湾').rep
 const decode = s => s.replace(/\\u([0-9a-fA-F]{4})/g, (_,c)=>String.fromCharCode(parseInt(c,16))).replace(/\\"/g,'"').replace(/&amp;/g,'&');
 const json = (res, code, body) => { res.writeHead(code, {'Content-Type':'application/json; charset=utf-8'}); res.end(JSON.stringify(body)); };
 
+
+// 英文内容统一以中文呈现：字幕优先使用 YouTube 的 zh-Hans 自动翻译；
+// 标题通过公开翻译端点转换。网络不可用时保留原文并明确标示，绝不伪造翻译。
+const titleTranslationCache = new Map();
+const isEnglishSource = name => !/[\u3400-\u9fff]/.test(String(name || ''));
+async function translateTitleToChinese(title) {
+  const raw = String(title || '').trim();
+  if (!raw || /[\u3400-\u9fff]/.test(raw)) return raw;
+  if (titleTranslationCache.has(raw)) return titleTranslationCache.get(raw);
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=' + encodeURIComponent(raw.slice(0, 900));
+    const response = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (!response.ok) throw new Error('translation HTTP ' + response.status);
+    const data = await response.json();
+    const translated = Array.isArray(data?.[0]) ? data[0].map(part => part?.[0] || '').join('').trim() : '';
+    const out = translated || raw;
+    titleTranslationCache.set(raw, out);
+    return out;
+  } catch (e) {
+    console.log(`[translate] 标题翻译失败：${e.message}`);
+    titleTranslationCache.set(raw, raw);
+    return raw;
+  }
+}
+
 // ===================== 多方向读取：通用请求头 =====================
 const YT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -264,20 +291,20 @@ async function captions(id) {
       const prioritized = [...new Set(tracks)].sort((a, b) => score(a) - score(b));
       for (const lang of prioritized) {
         if (langDirections.includes(lang)) continue; // 已试过
+        // 英文轨道必须先尝试翻译，确保英文平台的正文优先以中文输出。
+        if (lang.startsWith('en')) {
+          const tr = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hans' });
+          if (tr && tr.length > 10) {
+            console.log(`[caption] ${id} 命中翻译轨道 ${lang}->zh-Hans (${tr.length}字)`);
+            return tr;
+          }
+          const tr2 = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hant' });
+          if (tr2 && tr2.length > 10) return tr2;
+        }
         const t = await fetchTimedTextRaw(id, lang);
         if (t && t.length > 10) {
           console.log(`[caption] ${id} 命中 list 轨道 ${lang} (${t.length}字)`);
           return t;
-        }
-        // 若为英文，尝试翻译成 zh-Hant
-        if (lang.startsWith('en')) {
-          const tr = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hant' });
-          if (tr && tr.length > 10) {
-            console.log(`[caption] ${id} 命中翻译轨道 ${lang}->zh-Hant (${tr.length}字)`);
-            return tr;
-          }
-          const tr2 = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hans' });
-          if (tr2 && tr2.length > 10) return tr2;
         }
       }
       // 已有轨道但未命中正文，尝试对第一条做翻译兜底
@@ -367,20 +394,28 @@ async function runFlows(token) {
   });
   return { ok: r.ok, status: r.status };
 }
-async function scan(names) {
- // 章鱼 AI·全景分析：扫描全部所选频道，不再限制 12 个。
+async function scan(names, limit = 50) {
+ // 单次简报上限 50 条，避免长推送淹没重点；调用方可传入更小的剩余额度。
+ const itemLimit = Math.max(1, Math.min(Number(limit) || 50, 50));
+ // 章鱼 AI·全景分析：扫描所选频道，达到简报上限即停止。
  // 频道逐个顺序抓取，避免对 YouTube 产生过高并发；每个频道最多 3 条视频。
  // 异常频道自动多方向重试：searchChannel 内部已尝试 5 个搜索方向 × 2 套 headers × 4 套解析策略；
  // captions 内部已尝试 zh 多变体 × list 发现 × watch 页抽轨道 × 翻译，共 4 组字幕方向。
  const results = [];
  for (const name of names) {
+  if (results.length >= itemLimit) break;
   try {
    const videos = await searchChannel(name);
    for (const video of videos) {
+    if (results.length >= itemLimit) break;
     const transcript = await captions(video.id);
-    results.push({...video, channel:name, transcript, status:transcript ? '字幕已读取' : '无公开中文字幕'});
+    const english = isEnglishSource(name);
+    const originalTitle = video.title;
+    const title = english ? await translateTitleToChinese(originalTitle) : originalTitle;
+    results.push({...video, title, originalTitle: title !== originalTitle ? originalTitle : '', channel:name, transcript,
+      status: transcript ? (english ? '中文翻译字幕' : '字幕已读取') : (english ? '未取得中文字幕' : '无公开中文字幕')});
    }
-  } catch (e) { results.push({channel:name, error:e.message}); }
+  } catch (e) { if (results.length < itemLimit) results.push({channel:name, error:e.message}); }
   // 频道间礼貌间隔，降低限流概率
   if (names.length > 1) await new Promise(r => setTimeout(r, 180));
  }
@@ -594,7 +629,7 @@ async function pushWechat({ token, title, content, template = 'html', channel = 
 const server = http.createServer(async (req,res) => {
  const u = new URL(req.url, `http://${req.headers.host}`);
  if (u.pathname === '/api/scan' && req.method === 'POST') {
-  try { const {channels=[]} = await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})}); json(res,200,{items:await scan(channels), fetchedAt:new Date().toISOString()}); } catch(e){json(res,500,{error:e.message});} return;
+  try { const {channels=[], limit=50} = await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})}); json(res,200,{items:await scan(channels, limit), fetchedAt:new Date().toISOString()}); } catch(e){json(res,500,{error:e.message});} return;
  }
  if (u.pathname === '/api/run-flows' && req.method === 'POST') {
   try { const body=await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});
