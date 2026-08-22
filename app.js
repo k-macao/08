@@ -1,4 +1,7 @@
-const sourceNames=`信報財經新聞|Finance730|香港經濟日報 HKET|香港財經時報 HKBT|新城財經台|香港金融管理局|游庭皓的財經皓角|柴鼠兄弟 ZRBros|风傳媒-下班经济學|老王愛說笑|SHIN LI|自由女神邱沁宜|Better Leaf 好葉|慢活夫妻 George & Dewi|大俠武林|股乾爹 KuKanTieh|Gooaye股癌|理財不能等|懶錢包LazyWallet|M觀點|蕾咪Rami|財經 M 平方 MacroMicro|元大投顧財金頻道|股海老牛|财经风云|视野环球财经|阳光财经|ChineseFN 中文投資網|财经全世界|老李玩钱|土妹发财|贝拉说美股|美投说美股|艾爾文|寶可孟の省錢大作戰|吳淡如人生實用商學院|郭哲榮分析師|央视财经|Bloomberg中国|老徐价值投资|小Lin说|CK财经频道|钱姐说钱|硅谷居士|Mr.Market市场先生|财报狗|天下杂志|商业周刊|今周刊|非凡财经新闻|东森财经新闻|第一财经|FT中文网|观视频工作室|睡前消息|曲博科技教室`.split('|');
+// 中文财经频道 + 50 个英文资讯/社交媒体内容源；英文结果会优先转为中文展示。
+const sourceNames=`信報財經新聞|Finance730|香港經濟日報 HKET|香港財經時報 HKBT|新城財經台|香港金融管理局|游庭皓的財經皓角|柴鼠兄弟 ZRBros|风傳媒-下班经济學|老王愛說笑|SHIN LI|自由女神邱沁宜|Better Leaf 好葉|慢活夫妻 George & Dewi|大俠武林|股乾爹 KuKanTieh|Gooaye股癌|理財不能等|懶錢包LazyWallet|M觀點|蕾咪Rami|財經 M 平方 MacroMicro|元大投顧財金頻道|股海老牛|财经风云|视野环球财经|阳光财经|ChineseFN 中文投資網|财经全世界|老李玩钱|土妹发财|贝拉说美股|美投说美股|艾爾文|寶可孟の省錢大作戰|吳淡如人生實用商學院|郭哲榮分析師|央视财经|Bloomberg中国|老徐价值投资|小Lin说|CK财经频道|钱姐说钱|硅谷居士|Mr.Market市场先生|财报狗|天下杂志|商业周刊|今周刊|非凡财经新闻|东森财经新闻|第一财经|FT中文网|观视频工作室|睡前消息|曲博科技教室|Bloomberg Television|CNBC|Reuters|Financial Times|The Wall Street Journal|Yahoo Finance|Business Insider|Forbes|The Economist|The New York Times|The Washington Post|BBC News|Sky News|CNN|Fox Business|PBS NewsHour|Associated Press|The Guardian|Politico|Axios|Morning Brew|The Financial Diet|Patrick Boyle|The Plain Bagel|The Money Guy Show|Graham Stephan|Andrei Jikh|Mark Tilbury|Erika Kullberg|Humphrey Yang|Minority Mindset|Meet Kevin|Everything Money|Joseph Carlson|The Compound|Animal Spirits|Real Vision Finance|Kitco News|Coin Bureau|Bankless|Unchained|The Defiant|Altcoin Daily|CoinDesk|The Wall Street Journal News|Reddit Investing|WallStreetBets|Stocktwits|X Finance|LinkedIn News`.split('|');
+const ENGLISH_SOURCE_START = 56;
+const MAX_REPORT_ITEMS = 50;
 const box = document.querySelector('#channels');
 const totalEl = document.querySelector('#hero-channels');
 box.innerHTML = sourceNames.map(n => `<label class="channel"><input type="checkbox" value="${n}" checked> <span>${n}</span></label>`).join('');
@@ -97,11 +100,13 @@ document.querySelector('#scan').onclick = async () => {
     const all = [];
     const BATCH = 4;
     for (let i = 0; i < channels.length; i += BATCH) {
+      if (all.length >= MAX_REPORT_ITEMS) break;
       const batch = channels.slice(i, i + BATCH);
-      const r = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channels: batch }) });
+      const r = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channels: batch, limit: MAX_REPORT_ITEMS - all.length }) });
       const data = await r.json();
       if (!r.ok) throw Error(data.error);
       all.push(...data.items);
+      all.splice(MAX_REPORT_ITEMS);
       const done = Math.min(i + BATCH, channels.length);
       const pct = Math.round(done / channels.length * 88);
       p.style.width = pct + '%';
@@ -160,7 +165,7 @@ document.querySelector('#scan').onclick = async () => {
     p.style.width = '100%';
     if (pt) pt.textContent = '100%';
     const stamp = document.querySelector('#stamp');
-    if (stamp) stamp.textContent = 'COMPLETED · ' + last.length + ' ITEMS';
+    if (stamp) stamp.textContent = 'COMPLETED · ' + last.length + ' ITEMS' + (last.length >= MAX_REPORT_ITEMS ? ' · 50 条上限' : '');
     const pushBtn = document.querySelector('#push');
     if (pushBtn) pushBtn.disabled = false;
     updatePushMeta();
