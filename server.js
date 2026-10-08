@@ -375,7 +375,7 @@ async function captions(id) {
   }
 
   // 方向组4：尝试 innertube 风格的自动字幕（最后兜底，尽力而为）
-  // 若以上均失败，返回空字符串，上层会标记“未提供公开中文字幕”但保留视频链接
+  // 若以上均失败，返回空字符串，上层只保留视频标题链接，不再输出“未提供公开中文字幕”提示块
   return '';
 }
 async function runFlows(token) {
