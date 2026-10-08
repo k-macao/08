@@ -133,6 +133,22 @@
           <div id="results"></div>
         </section>
 
+        <!-- Seeking Alpha 新栏目 / Global Analysis Column -->
+        <section class="section-panel">
+          <div class="panelhead">
+            <h2><span class="icon-tag">05</span> SEEKING ALPHA · 最新分析</h2>
+            <small id="sa-state">待命 / STANDBY</small>
+          </div>
+          <p class="panel-desc">
+            <span class="t-body">读取 <b class="t-key">seekingalpha.com/latest-articles</b> 最新分析文章，逐条解析为中文并给出 <b class="t-key">AI 多空概率</b>（看多 / 看空）。</span>
+            <span class="t-sub">仅保留最近 72 小时内发布的内容；英文标题与要点优先翻译为中文，抓取受限时自动降级为示例数据并如实标注。</span>
+          </p>
+          <button class="btn-secondary" id="sarefresh">
+            <span>🌐</span> [F3] 读取 Seeking Alpha 最新分析
+          </button>
+          <div id="sa-results" class="sa-results"></div>
+        </section>
+
         <!-- 尾页宣言 / Editorial Footer -->
         <footer class="editorial-footer">
           <div class="footer-card">

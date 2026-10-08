@@ -96,6 +96,7 @@ document.querySelector('#all').onclick = () => {
 };
 
 let last = [];
+let lastSA = [];   // 新栏目：Seeking Alpha 最新分析（网页渲染 + 推送块共用）
 function esc(s = '') {
   return s.replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
 }
@@ -312,6 +313,67 @@ document.querySelector('#runflows').onclick = async () => {
   }
 };
 
+// ===================== 新栏目：Seeking Alpha 最新分析 =====================
+// 读取 seekingalpha.com/latest-articles → 中文解析 → AI 多空概率；真实读取失败自动降级示例数据（如实标注）。
+async function loadSeekingAlpha(forceDemo = false) {
+  const state = document.querySelector('#sa-state');
+  const box = document.querySelector('#sa-results');
+  if (!box) return;
+  if (state) state.textContent = '读取中… / FETCHING';
+  const get = async (url) => {
+    const r = await fetch(url);
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw Error(d.error || ('HTTP ' + r.status));
+    return d;
+  };
+  try {
+    let d, degraded = '';
+    if (forceDemo) {
+      d = await get('/api/seekingalpha?demo=1');
+    } else {
+      try { d = await get('/api/seekingalpha'); }
+      catch (e) { degraded = e.message; d = await get('/api/seekingalpha?demo=1'); d.demo = true; }
+    }
+    lastSA = d.items || [];
+    renderSA(lastSA);
+    if (state) state.textContent = (d.demo || degraded)
+      ? `示例数据 · ${lastSA.length} 条` + (degraded ? `（真实读取失败：${degraded}）` : '（离线预览）')
+      : `已读取 · ${lastSA.length} 条 · 时效验证 ✓ ${FRESH_WINDOW_LABEL}内`;
+  } catch (e) {
+    if (state) state.textContent = '读取失败 / ERROR';
+    box.innerHTML = `<span class="empty-kicker">SA FETCH FAILED</span>
+      <div class="empty-line">Seeking Alpha 读取失败：${esc(e.message)}</div>
+      <small class="empty-note">可点击上方按钮重试；SA 对部分网络环境限流时仅能预览示例数据。</small>`;
+    box.className = 'empty';
+  }
+}
+function renderSA(items) {
+  const box = document.querySelector('#sa-results');
+  if (!box) return;
+  box.className = 'sa-results';
+  if (!items.length) {
+    box.innerHTML = `<div class="empty"><span class="empty-kicker">NO FRESH ANALYSIS</span><div class="empty-line">最近 ${FRESH_WINDOW_LABEL}内没有新的分析文章。</div></div>`;
+    return;
+  }
+  box.innerHTML = items.map((x, i) => `
+    <article class="item">
+      <div class="meta">
+        <div class="ch-name">
+          <span class="hl-badge">SA#${i + 1}</span>
+          SA ▸ ${esc(x.ticker || 'MARKET')}
+          <span class="hl-badge fresh-badge">${FRESH_WINDOW_LABEL.toUpperCase()} ✓</span>
+        </div>
+        <div>${esc(x.publishedLabel || '')}${x.publishedMacau ? ` · ${esc(x.publishedMacau)}` : ''}${x.author ? ` · ${esc(x.author)}` : ''}</div>
+      </div>
+      <h3><a href="${esc(x.url)}" target="_blank" rel="noreferrer">${esc(x.title)}</a></h3>
+      ${x.originalTitle ? `<div class="sa-original">EN ▸ ${esc(x.originalTitle)}</div>` : ''}
+      ${x.summaryZh ? `<div class="sa-summary">${esc(x.summaryZh)}</div>` : ''}
+      ${lsHtml(x)}
+    </article>`).join('');
+}
+document.querySelector('#sarefresh') && (document.querySelector('#sarefresh').onclick = () => loadSeekingAlpha(false));
+loadSeekingAlpha(); // 页面载入即读取该栏目（失败自动降级示例数据）
+
 document.querySelector('#push').onclick = async () => {
   const token = document.querySelector('#token').value.trim();
   if (!token) return alert('请输入 PushPlus Token');
@@ -446,7 +508,14 @@ document.querySelector('#push').onclick = async () => {
       const sd = await sr.json();
       if (sr.ok && sd && sd.ok && sd.summaryHtml) summaryHtml = sd.summaryHtml;
     } catch (_) { /* 降级：无总结 */ }
-    const content = summaryHtml ? (summaryHtml + baseContent) : baseContent;
+    // 新栏目：Seeking Alpha 最新分析块（仅真实读取成功时附加，绝不把示例数据当真实情报推送）
+    let saHtml = '';
+    try {
+      const saRes = await fetch('/api/seekingalpha');
+      const saD = await saRes.json();
+      if (saRes.ok && saD && saD.ok && !saD.demo && saD.html) saHtml = saD.html;
+    } catch (_) { /* 降级：无 SA 栏目 */ }
+    const content = (summaryHtml + saHtml) ? (summaryHtml + saHtml + baseContent) : baseContent;
     setState('推送中…');
     setPushStatus('PUSHING → WECHAT');
     const r = await fetch('/api/push', {
@@ -463,7 +532,7 @@ document.querySelector('#push').onclick = async () => {
     const d = await r.json();
     if (!r.ok || !d.ok) throw Error(d.msg || d.error || ('HTTP ' + r.status));
     const sent = d.sentParts || 1, total = d.totalParts || 1;
-    alert(`✅ 推送成功！\n已推送到微信（PushPlus）—— DOS 复古终端全景简报已发送！\n${summaryHtml ? '🧠 已附加 AI 主题聚类总结\n' : ''}发送 ${sent}/${total} 条` + (total > 1 ? `（超过限制自动分条发送）` : '') + (d.data ? `\n首条流水号：` + d.data : '') + `\n\n— 章鱼 AI 全景分析 —`);
+    alert(`✅ 推送成功！\n已推送到微信（PushPlus）—— DOS 复古终端全景简报已发送！\n${summaryHtml ? '🧠 已附加 AI 主题聚类总结\n' : ''}${saHtml ? '🌐 已附加 SEEKING ALPHA 最新分析栏目\n' : ''}发送 ${sent}/${total} 条` + (total > 1 ? `（超过限制自动分条发送）` : '') + (d.data ? `\n首条流水号：` + d.data : '') + `\n\n— 章鱼 AI 全景分析 —`);
     setPushStatus('PUSHED ' + sent + '/' + total);
   } catch (e) {
     alert('推送失败：' + e.message + '\n\n排查提示：\n1. Token 是否正确且已实名认证（2024-08-01 起需实名）\n2. 检查网络连接或 PushPlus 频率限制');

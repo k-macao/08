@@ -316,8 +316,23 @@ jobs:
 
           </div>`;
 
+          // 新栏目：Seeking Alpha 最新分析（仅真实读取成功时附加，失败静默降级，绝不推送示例数据）
+          let saHtml = '';
+          try {
+            const saR = await fetch('http://localhost:3000/api/seekingalpha');
+            const saD = await saR.json();
+            if (saR.ok && saD && saD.ok && !saD.demo && saD.html) {
+              saHtml = saD.html;
+              console.log(`✅ 已附加 SEEKING ALPHA 最新分析栏目（${(saD.items || []).length} 条）`);
+            } else {
+              console.log('ℹ️ Seeking Alpha 栏目未附加：', (saD && saD.error) || ('HTTP ' + saR.status));
+            }
+          } catch (e) {
+            console.log('ℹ️ Seeking Alpha 栏目异常，跳过：', e.message);
+          }
+
           // 不推个股页：发送前剥离个股板块/个股页
-          const content = stripStockSections((summaryHtml || '') + baseContent);
+          const content = stripStockSections((summaryHtml || '') + saHtml + baseContent);
           const title = '章鱼 AI 全景分析';
           fs.writeFileSync('brief.html', content);
 
@@ -600,8 +615,23 @@ jobs:
 
             </div>`;
 
+            // 新栏目：Seeking Alpha 最新分析（仅真实读取成功时附加，失败静默降级，绝不推送示例数据）
+            let saHtml = '';
+            try {
+              const saR = await fetch('http://localhost:3000/api/seekingalpha');
+              const saD = await saR.json();
+              if (saR.ok && saD && saD.ok && !saD.demo && saD.html) {
+                saHtml = saD.html;
+                console.log(`✅ 已附加 SEEKING ALPHA 最新分析栏目（${(saD.items || []).length} 条）`);
+              } else {
+                console.log('ℹ️ Seeking Alpha 栏目未附加：', (saD && saD.error) || ('HTTP ' + saR.status));
+              }
+            } catch (e) {
+              console.log('ℹ️ Seeking Alpha 栏目异常，跳过：', e.message);
+            }
+
             // 不推个股页：发送前剥离个股板块/个股页
-            const content = stripStockSections((summaryHtml || '') + baseContent);
+            const content = stripStockSections((summaryHtml || '') + saHtml + baseContent);
             const title = '章鱼 AI 全景分析';
             fs.writeFileSync('brief.html', content);
 

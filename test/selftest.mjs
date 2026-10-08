@@ -10,6 +10,10 @@ import {
   ruleLongShort, normalizeProbability, probabilityLabel, bullBearBar, aggregateLongShort, probabilitySourceText
 } from '../longshort.mjs';
 import { analyzeLongShort, renderSummaryHtml } from '../ai.mjs';
+import {
+  parseSeekingAlphaList, parseSAPublished, normalizeSAItem,
+  renderSeekingAlphaPush, buildDemoSeekingAlpha, SA_CHANNEL
+} from '../seekingalpha.mjs';
 
 let passed = 0;
 const t = (name, fn) => {
@@ -145,6 +149,55 @@ t('五档色深：标题 / 突出 / 重点 / 正文 / 说明 互不相同', () =
   assert.match(html, /color:#b8f2cb;font-weight:700;font-size:11.5px/); // 重点：要点列表
   assert.match(html, /color:#b8f2cb;font-weight:700;line-height:1.9/);  // 重点：多空概率数值
   assert.match(html, /color:#63b47f/);                          // 说明：来源与免责
+});
+
+console.log('· 新栏目：Seeking Alpha 最新分析');
+t('SA 列表解析：标题 / 链接 / 时间 / 作者 / 标的', () => {
+  const html = `
+    <div><a href="https://seekingalpha.com/article/4781111-annaly-better-pick"><h3>Annaly A Better Pick Here Relative To AGNC</h3></a>
+    <span data-date="2026-10-09T21:28:00Z"></span><a href="/symbol/NLY">NLY</a><a href="/author/c-jessen">C Jessen</a></div>
+    <div><a href="/article/4781112-novavax-sell-false-breakout">Novavax: Sell The False Plague Breakout</a>
+    Today, 5:24 PM <a href="/symbol/NVAX">NVAX</a></div>`;
+  const items = parseSeekingAlphaList(html);
+  assert.equal(items.length, 2);
+  assert.match(items[0].title, /Annaly A Better Pick/);
+  assert.match(items[0].url, /article\/4781111/);
+  assert.equal(items[0].ticker, 'NLY');
+  assert.equal(items[0].author, 'C Jessen');
+  assert.match(items[1].published, /Today,\s*5:24\s*PM/i);
+  assert.equal(items[1].ticker, 'NVAX');
+});
+t('SA 时效解析：Today / Yesterday / 日期 / 相对时间', () => {
+  const now = new Date('2026-10-09T10:00:00').getTime();
+  const today = parseSAPublished('Today, 5:28 PM', now);
+  assert.ok(today && today.ageMs >= 0 && today.ageMs <= 24 * 3600 * 1000, JSON.stringify(today));
+  const yst = parseSAPublished('Yesterday, 8:15 AM', now);
+  assert.ok(yst && yst.ageMs > 12 * 3600 * 1000 && yst.ageMs <= 48 * 3600 * 1000, JSON.stringify(yst));
+  const dated = parseSAPublished('Oct. 7', now);
+  assert.ok(dated && dated.ageMs > 24 * 3600 * 1000 && dated.ageMs <= 72 * 3600 * 1000, JSON.stringify(dated));
+  const rel = parseSAPublished('3 hours ago', now);
+  assert.equal(rel.ageMs, 3 * 3600 * 1000);
+  assert.equal(parseSAPublished('', now), null);
+});
+t('SA 条目归一：72 小时裁决 + 中文解析状态 + 本地规则兜底', () => {
+  const now = Date.now();
+  const fresh = normalizeSAItem({ title: 'Novavax: Sell The False Plague Breakout', published: 'Today, 5:24 PM', url: 'https://seekingalpha.com/article/1-x', summaryZh: '假突破，逢高了结' }, now);
+  assert.equal(fresh.channel, SA_CHANNEL);
+  assert.equal(fresh.status, '全文中文解析');
+  assert.ok(fresh.bullBear && fresh.bullBear.bull + fresh.bullBear.bear === 100);
+  const stale = normalizeSAItem({ title: 'Old Story', published: 'Oct. 1, 2025', url: 'https://seekingalpha.com/article/2-y' }, now);
+  assert.equal(stale._fresh.ok, false);
+});
+t('SA 推送块：五档色深 + 空列表不输出', () => {
+  assert.equal(renderSeekingAlphaPush([]), '');
+  const { items } = buildDemoSeekingAlpha();
+  const html = renderSeekingAlphaPush(items);
+  assert.match(html, /SEEKING ALPHA · 最新分析/);
+  assert.match(html, /color:#eafff0/);   // 标题
+  assert.match(html, /background:#00ff66/); // 突出（标题栏）
+  assert.match(html, /color:#b8f2cb/);   // 重点（多空概率数值）
+  assert.match(html, /color:#8fdca4/);   // 正文（中文解析）
+  assert.match(html, /color:#63b47f/);   // 说明（英文原题 / 来源标注）
 });
 
 await Promise.resolve();
