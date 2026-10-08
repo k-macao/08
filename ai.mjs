@@ -44,8 +44,9 @@ function buildPrompt(items) {
   lines.push('');
   lines.push('【任务】');
   lines.push('1. 阅读下面所有视频的关键信息（标题 + 频道 + 字幕摘要）。');
-  lines.push('2. 把内容按"主题"归类（个股/板块 / 宏观与利率 / 政策与监管 / 产业与公司 / 地缘与汇率 / 其他）。');
+  lines.push('2. 把内容按"主题"归类（板块与行业 / 宏观与利率 / 政策与监管 / 产业与公司 / 地缘与汇率 / 其他）。');
   lines.push('3. 输出严格的 JSON，不要任何额外解释、不要 Markdown 代码块、不要前后缀文字。');
+  lines.push('3.5 重要：本简报为"全景汇总"，禁止输出任何"个股页"、按个股拆分的板块、单股分析或买卖建议（不得出现目标价、买入/卖出评级等个股推荐内容）；涉及个股的信息只作为全景叙述的一部分简要带过。');
   lines.push('4. JSON 字段：');
   lines.push('   {');
   lines.push('     "main": "今日主线",       // 80-150 字，一段话概括市场/舆论最核心的故事');
@@ -104,7 +105,9 @@ function extractJson(text) {
 // 归一化模型输出
 function normalize(raw, items) {
   if (!raw || typeof raw !== 'object') return null;
-  const toArr = v => Array.isArray(v) ? v.filter(x => x && String(x).trim()).map(x => String(x).trim().slice(0, 200)) : [];
+  // 全景汇总策略：个股页/个股推荐类条目一律剔除（不推个股页）
+  const STOCK_ENTRY_RE = /个股页|個股頁|STOCK PAGE|个股推荐|個股推薦|目标价|目標價|买入评级|買入評級|卖出评级|賣出評級/;
+  const toArr = v => Array.isArray(v) ? v.filter(x => x && String(x).trim() && !STOCK_ENTRY_RE.test(String(x))).map(x => String(x).trim().slice(0, 200)) : [];
   const main = typeof raw.main === 'string' ? raw.main.trim().slice(0, 800) : '';
   const hotTopics = toArr(raw.hotTopics).slice(0, 6);
   const risks = toArr(raw.risks).slice(0, 5);
@@ -199,66 +202,70 @@ export async function summarize(items, opts = {}) {
   return norm;
 }
 
+
 /**
- * 把总结对象渲染成 HTML 片段（Style A「电子杂志 × 电子墨水」视觉风格）
+ * 把总结对象渲染成 HTML 片段（DOS 监视器 · 复古终端视觉风格）
  * @param {Object} summary  summarize() 的返回值
  * @param {Object} meta     { generatedAt: string, itemCount: number }
  */
 export function renderSummaryHtml(summary, meta = {}) {
   if (!summary) return '';
-  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const esc = s => String(s || '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c]));
   const itemCount = meta.itemCount || 0;
-  
-  const li = (arr, badgeText = '•') => (arr && arr.length)
-    ? `<ul style="margin:6px 0 0 0;padding:0;list-style:none;">${arr.map(x => `
-        <li style="margin:4px 0;padding:5px 8px;background:#f5f6f8;border:1px solid #e0e0e0;border-left:3px solid #000000;color:#111111;font-size:11.5px;line-height:1.65;">
-          ${esc(x)}
+
+  const li = (arr, badgeText = '::') => (arr && arr.length)
+    ? `<ul style="margin:6px 0 0 0;padding:0;list-style:none;font-family:'Courier New',Consolas,'SimSun',monospace;">${arr.map(x => `
+        <li style="margin:4px 0;padding:5px 8px;background:#031203;border-left:3px solid #00ff66;color:#2ee86e;font-size:11.5px;line-height:1.65;">
+          <span style="color:#00ff66;font-weight:700;margin-right:6px;">${esc(badgeText)}</span>${esc(x)}
         </li>`).join('')}</ul>`
-    : '<p style="margin:6px 0 0;color:#888888;font-size:11px;">（无相关要点）</p>';
+    : '<p style="margin:6px 0 0;color:#1d9e4c;font-size:11px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
 
   return [
-    '<section style="margin:12px 0;padding:12px;background:#ffffff;border:2px solid #000000;box-shadow:3px 3px 0 #000000;">',
-      '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px solid #000000;padding-bottom:6px;margin-bottom:10px;font-family:monospace,sans-serif;">',
+    '<section style="margin:12px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:\'Courier New\',Consolas,\'SimSun\',monospace;">',
+      // ── DOS 窗口标题栏 ──
+      '<div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">',
         '<div style="display:flex;align-items:center;gap:6px;">',
-          '<span style="background:#000000;color:#00ff66;padding:1px 5px;font-size:9.5px;font-weight:700;">AI SUMMARY</span>',
-          '<span style="font-size:12px;font-weight:800;color:#111111;font-family:\'Noto Serif SC\',Georgia,serif,sans-serif;">章鱼 AI · 主题聚类分析</span>',
+          '<span style="background:#041404;color:#00ff66;padding:1px 5px;">■</span>',
+          '<span>C:\\AI\\SUMMARY.EXE</span>',
         '</div>',
-        `<span style="font-size:9.5px;color:#555555;">基于 ${itemCount} 条情报</span>`,
+        `<span style="background:#041404;color:#00ff66;padding:1px 6px;">AI SUMMARY · 基于 ${itemCount} 条情报</span>`,
       '</div>',
-      
-      '<div style="background:#0a0a0b;border:1.5px solid #000000;padding:10px 12px;margin-bottom:10px;box-shadow:2px 2px 0 #000000;">',
-        '<div style="font-family:monospace,sans-serif;font-size:10px;color:#00ff66;font-weight:800;letter-spacing:0.8px;margin-bottom:4px;">',
-          '◈ TODAY MAIN QUEST / 今日主线',
+      '<div style="padding:10px 12px;">',
+        // ── 今日主线：黑屏看板 ──
+        '<div style="background:#031203;border:1px solid #0d9b4c;padding:10px 12px;margin-bottom:10px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#00ff66;font-weight:700;letter-spacing:1px;margin-bottom:6px;">',
+            '▌TODAY MAIN QUEST / 今日主线',
+          '</div>',
+          `<p style="margin:0;color:#9dffb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;font-size:11.5px;">${esc(summary.main)}</p>`,
+          '<div style="margin-top:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\&gt; MAIN.TXT █</div>',
         '</div>',
-        `<p style="margin:0;color:#ffffff;line-height:1.75;white-space:pre-wrap;word-break:break-word;font-size:11.5px;">${esc(summary.main)}</p>`,
-      '</div>',
-      
-      '<div style="margin-top:10px;">',
-        '<div style="font-family:monospace,sans-serif;font-size:10.5px;font-weight:800;color:#111111;display:flex;align-items:center;gap:6px;">',
-          '<span style="background:#000000;color:#00ff66;padding:1px 4px;font-size:9px;">HOT</span>',
-          '<span>热点话题 · HOT TOPICS</span>',
+        // ── 热点 ──
+        '<div style="margin-top:10px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',
+            '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">HOT</span>',
+            '<span>&gt; 热点话题 · HOT_TOPICS.DAT</span>',
+          '</div>',
+          li(summary.hotTopics, '*'),
         '</div>',
-        li(summary.hotTopics),
-      '</div>',
-      
-      '<div style="margin-top:10px;">',
-        '<div style="font-family:monospace,sans-serif;font-size:10.5px;font-weight:800;color:#111111;display:flex;align-items:center;gap:6px;">',
-          '<span style="background:#000000;color:#00ff66;padding:1px 4px;font-size:9px;">RISK</span>',
-          '<span>风险点 · RISKS</span>',
+        // ── 风险 ──
+        '<div style="margin-top:10px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#ffb000;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',
+            '<span style="background:#ffb000;color:#041404;padding:1px 5px;font-size:9px;">RISK</span>',
+            '<span>&gt; 风险点 · RISKS.DAT</span>',
+          '</div>',
+          li(summary.risks, '!'),
         '</div>',
-        li(summary.risks),
-      '</div>',
-      
-      '<div style="margin-top:10px;">',
-        '<div style="font-family:monospace,sans-serif;font-size:10.5px;font-weight:800;color:#111111;display:flex;align-items:center;gap:6px;">',
-          '<span style="background:#000000;color:#00ff66;padding:1px 4px;font-size:9px;">OPPORTUNITY</span>',
-          '<span>机会点 · OPPORTUNITIES</span>',
+        // ── 机会 ──
+        '<div style="margin-top:10px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',
+            '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">OPS</span>',
+            '<span>&gt; 机会点 · OPPORTUNITIES.DAT</span>',
+          '</div>',
+          li(summary.opportunities, '+'),
         '</div>',
-        li(summary.opportunities),
-      '</div>',
-
-      '<div style="margin-top:10px;padding-top:6px;border-top:1px dashed #dddddd;font-family:monospace,sans-serif;font-size:9px;color:#888888;text-align:center;">',
-        'STYLE A · 电子杂志 × 电子墨水 · 多模型协同推理决策',
+        '<div style="margin-top:10px;padding-top:6px;border-top:1px dashed #0d9b4c;font-family:\'Courier New\',Consolas,monospace;font-size:9px;color:#1d9e4c;text-align:center;">',
+          'DOS MONITOR · 复古终端 · 全景汇总（不含个股页） · 多模型协同推理决策',
+        '</div>',
       '</div>',
     '</section>'
   ].join('');

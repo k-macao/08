@@ -6,165 +6,193 @@
   <title>章鱼 AI 全景分析 — 全网 AI 调研境内境外数据</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
+<div class="desk">
 
-  <!-- 杂志页眉 / Issue Header -->
-  <div class="top-issue-bar">
-    <div class="issue-left">
-      <span class="dot-neon"></span>
-      <span>OCTOPUS AI // EDITORIAL PANORAMA</span>
+  <!-- DOS 监视器外壳 / CRT Monitor Shell -->
+  <div class="monitor">
+    <div class="monitor-bar">
+      <span class="monitor-brand">OCTOPUS DOS MONITOR 3000</span>
+      <span class="monitor-lights">
+        <i class="led led-on"></i><i class="led"></i><i class="led led-amber"></i>
+      </span>
+      <span class="monitor-knob">VOL ◉ ◎ BRT</span>
     </div>
-    <div class="issue-right">
-      <span class="hl-badge">STYLE A · 电子杂志 × 电子墨水</span>
+
+    <div class="screen">
+      <main>
+
+        <!-- DOS 命令行页眉 / Command Bar -->
+        <div class="top-issue-bar">
+          <div class="issue-left">
+            <span class="dot-neon"></span>
+            <span>C:\OCTOPUS\AI&gt; PANORAMA.EXE</span>
+          </div>
+          <div class="issue-right">
+            <span class="hl-badge">DOS MONITOR · 复古终端</span>
+          </div>
+        </div>
+
+        <!-- 开机看板 / Boot Screen Hero -->
+        <section class="hero-cover">
+          <div class="kicker">
+            <span>■</span> SYSTEM BOOT OK // 境内境外全景调研
+          </div>
+          <h1 class="main-title">章鱼 AI 全景分析</h1>
+          <p class="sub-title">全网 AI 调研境内境外数据，由多个大模型混合部署 。</p>
+
+          <div class="hero-meta-grid">
+            <div class="meta-card">
+              <span class="m-lbl">ROSTER</span>
+              <b class="m-val" id="hero-channels">56 CH</b>
+              <small class="m-sub">中文 + 70 英文源</small>
+            </div>
+            <div class="meta-card">
+              <span class="m-lbl">SCAN DEPTH</span>
+              <b class="m-val">50 ITEMS</b>
+              <small class="m-sub">单次简报上限</small>
+            </div>
+            <div class="meta-card">
+              <span class="m-lbl">ARCHITECTURE</span>
+              <b class="m-val">MULTI-LLM</b>
+              <small class="m-sub">多模型协同决策</small>
+            </div>
+          </div>
+
+          <div class="hero-manifesto">
+            <span class="hl-badge">多模型协同</span>
+            <span>底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 <b>Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi</b>。根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！</span>
+          </div>
+
+          <div class="boot-line">C:\&gt; TYPE BRIEF.TXT <span class="cursor">█</span></div>
+        </section>
+
+        <!-- 频道选择面板 / Channel Roster Console -->
+        <section class="section-panel">
+          <div class="panelhead">
+            <h2><span class="icon-tag">01</span> 频道清单 <small id="count"></small></h2>
+            <button class="btn-ghost" id="all">[F1] 全选 / 全不选</button>
+          </div>
+          <p class="panel-desc">
+            覆盖中文财经频道与 70 个英文新闻／社交媒体内容源（含新增的 Reddit 社区与 moomoo 市场资讯来源）。英文标题与字幕优先翻译为中文；单次简报最多保留 50 条内容。<span class="hl-badge">规范</span> 出现"台湾／台灣"时统一规范为"中国台湾"。<span class="hl-badge">全景汇总</span> 推送不含个股页。
+          </p>
+          <div id="channels" class="channels"></div>
+        </section>
+
+        <!-- 控制与扫描执行 / Scan Deck -->
+        <section class="section-panel">
+          <div class="panelhead">
+            <h2><span class="icon-tag">02</span> 执行扫描</h2>
+            <small id="state">待命 / STANDBY</small>
+          </div>
+          <p class="panel-desc">
+            读取公开搜索结果与中文字幕；无字幕视频保留链接并明确标注。支持自动多方向容错重试。
+          </p>
+          <button class="btn-primary" id="scan">
+            <span>▶</span> [ENTER] 开始全景扫描 <span style="font-size:11px;opacity:0.8;">(中英内容源 · 最多 50 条)</span>
+          </button>
+          <div class="meter">
+            <div class="meter-head">
+              <span>任务进度 · PROGRESS</span>
+              <span id="progress-text">0%</span>
+            </div>
+            <div class="meter-track"><b id="progress"></b></div>
+          </div>
+          <button class="btn-secondary" id="runflows">
+            <span>⚡</span> [F5] 触发 GitHub Actions 流水线
+          </button>
+          <div id="flowsstate" class="meter" style="display:none;margin-top:6px;">
+            <div class="meter-head">
+              <span>流水线状态</span>
+              <strong id="flowsmsg">等待触发</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- 推送发射台 / WeChat Push Deck -->
+        <section class="section-panel">
+          <div class="panelhead">
+            <h2><span class="icon-tag">03</span> 推送发射台</h2>
+            <small>PushPlus 微信公众号 · 09:00 / 17:00 AUTO</small>
+          </div>
+
+          <div>
+            <label style="font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--ink);">
+              PushPlus Token <span style="font-weight:normal;color:var(--ink-muted);">（本地会话有效 · 不写入服务器）</span>
+            </label>
+            <div class="input-row">
+              <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink);font-weight:700;">KEY ▸</span>
+              <input id="token" type="password" placeholder="粘贴你的 PushPlus Token">
+              <span class="input-light"></span>
+            </div>
+            <p class="hint">
+              去 <a href="https://www.pushplus.plus" target="_blank" rel="noreferrer">pushplus.plus</a> 微信扫码登录 → 复制 Token（需实名认证）· 超 90KB 自动分页 · 定时 09:00 / 17:00（澳门时间）自动推送
+            </p>
+          </div>
+
+          <div class="push-meta-bar">
+            <span>PACKET: <b id="packetCount">0</b> 条情报</span>
+            <span>STATUS: <b id="pushStatus">STANDBY</b></span>
+          </div>
+
+          <button class="btn-primary" id="push" disabled>
+            <span>📤</span> [F10] 推送当前全景简报 → 微信
+          </button>
+        </section>
+
+        <!-- 全景情报流 / Intelligence Stream -->
+        <section class="report-stream">
+          <div class="reporthead">
+            <h2><span class="icon-tag">04</span> 本次全景情报汇总</h2>
+            <div id="stamp" class="stamp">尚未执行 · STANDBY</div>
+          </div>
+
+          <div id="empty" class="empty">
+            <span class="empty-kicker">WAITING FOR SCAN</span><br>
+            选择频道后，点击「开始全景扫描」。<br>
+            <small style="color:#1d9e4c;font-size:11px;">扫描结果将以「DOS 监视器 · 复古终端」竖版长页排版呈现。</small>
+          </div>
+
+          <div id="results"></div>
+        </section>
+
+        <!-- 尾页宣言 / Editorial Footer -->
+        <footer class="editorial-footer">
+          <div class="footer-card">
+            <div class="footer-head">
+              <span class="hl-badge">EDITORIAL_MANIFESTO.TXT</span>
+              <span>OCTOPUS AI · PANORAMA REPORT</span>
+            </div>
+            <div class="footer-author">
+              作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
+            </div>
+            <div class="footer-body">
+              全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+            </div>
+            <div class="footer-foot">
+              <span>© 章鱼 AI 全景分析 · 微信竖版长页面</span>
+              <span>DOS MONITOR · 复古终端</span>
+            </div>
+            <div class="boot-line footer-boot">C:\OCTOPUS\AI&gt; EXIT <span class="cursor">█</span></div>
+          </div>
+        </footer>
+
+      </main>
+    </div>
+
+    <div class="monitor-base">
+      <span class="monitor-badge">CRT · GREEN PHOSPHOR</span>
+      <span class="monitor-badge">DOS 6.22</span>
     </div>
   </div>
+</div>
 
-  <!-- 封面大看板 / Hero Cover -->
-  <section class="hero-cover">
-    <div class="kicker">
-      <span>◈</span> AI INTELLIGENCE PANORAMA // 境内境外全景调研
-    </div>
-    <h1 class="main-title">章鱼 AI 全景分析</h1>
-    <p class="sub-title">全网 AI 调研境内境外数据，由多个大模型混合部署 。</p>
-    
-    <div class="hero-meta-grid">
-      <div class="meta-card">
-        <span class="m-lbl">ROSTER</span>
-        <b class="m-val" id="hero-channels">56 CH</b>
-        <small class="m-sub">中文 + 70 英文源</small>
-      </div>
-      <div class="meta-card">
-        <span class="m-lbl">SCAN DEPTH</span>
-        <b class="m-val">50 ITEMS</b>
-        <small class="m-sub">单次简报上限</small>
-      </div>
-      <div class="meta-card">
-        <span class="m-lbl">ARCHITECTURE</span>
-        <b class="m-val">MULTI-LLM</b>
-        <small class="m-sub">多模型协同决策</small>
-      </div>
-    </div>
+<!-- CRT 扫描线 / 暗角 / 轻微闪烁 -->
+<div class="crt-overlay" aria-hidden="true"></div>
 
-    <div class="hero-manifesto">
-      <span class="hl-badge">多模型协同</span>
-      <span>底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 <b>Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi</b>。根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！</span>
-    </div>
-  </section>
-
-  <!-- 频道选择面板 / Channel Roster Console -->
-  <section class="section-panel">
-    <div class="panelhead">
-      <h2><span class="icon-tag">01</span> 频道清单 <small id="count"></small></h2>
-      <button class="btn-ghost" id="all">全选 / 全不选</button>
-    </div>
-    <p class="panel-desc">
-      覆盖中文财经频道与 70 个英文新闻／社交媒体内容源（含新增的 Reddit 社区与 moomoo 市场资讯来源）。英文标题与字幕优先翻译为中文；单次简报最多保留 50 条内容。<span class="hl-badge">规范</span> 出现"台湾／台灣"时统一规范为"中国台湾"。
-    </p>
-    <div id="channels" class="channels"></div>
-  </section>
-
-  <!-- 控制与扫描执行 / Scan Deck -->
-  <section class="section-panel">
-    <div class="panelhead">
-      <h2><span class="icon-tag">02</span> 执行扫描</h2>
-      <small id="state">待命 / STANDBY</small>
-    </div>
-    <p class="panel-desc">
-      读取公开搜索结果与中文字幕；无字幕视频保留链接并明确标注。支持自动多方向容错重试。
-    </p>
-    <button class="btn-primary" id="scan">
-      <span>▶</span> 开始全景扫描 <span style="font-size:11px;opacity:0.8;">(中英内容源 · 最多 50 条)</span>
-    </button>
-    <div class="meter">
-      <div class="meter-head">
-        <span>任务进度 · PROGRESS</span>
-        <span id="progress-text">0%</span>
-      </div>
-      <div class="meter-track"><b id="progress"></b></div>
-    </div>
-    <button class="btn-secondary" id="runflows">
-      <span>⚡</span> 触发 GitHub Actions 流水线
-    </button>
-    <div id="flowsstate" class="meter" style="display:none;margin-top:6px;">
-      <div class="meter-head">
-        <span>流水线状态</span>
-        <strong id="flowsmsg">等待触发</strong>
-      </div>
-    </div>
-  </section>
-
-  <!-- 推送发射台 / WeChat Push Deck -->
-  <section class="section-panel">
-    <div class="panelhead">
-      <h2><span class="icon-tag">03</span> 推送发射台</h2>
-      <small>PushPlus 微信公众号</small>
-    </div>
-    
-    <div>
-      <label style="font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--ink);">
-        PushPlus Token <span style="font-weight:normal;color:var(--ink-muted);">（本地会话有效 · 不写入服务器）</span>
-      </label>
-      <div class="input-row">
-        <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink);font-weight:700;">KEY ▸</span>
-        <input id="token" type="password" placeholder="粘贴你的 PushPlus Token">
-        <span class="input-light"></span>
-      </div>
-      <p class="hint">
-        去 <a href="https://www.pushplus.plus" target="_blank" rel="noreferrer">pushplus.plus</a> 微信扫码登录 → 复制 Token（需实名认证）· 超 90KB 自动分页
-      </p>
-    </div>
-
-    <div class="push-meta-bar">
-      <span>PACKET: <b id="packetCount">0</b> 条情报</span>
-      <span>STATUS: <b id="pushStatus">STANDBY</b></span>
-    </div>
-
-    <button class="btn-primary" id="push" disabled>
-      <span>📤</span> 推送当前全景简报 → 微信
-    </button>
-  </section>
-
-  <!-- 全景情报流 / Intelligence Stream -->
-  <section class="report-stream">
-    <div class="reporthead">
-      <h2><span class="icon-tag">04</span> 本次全景情报汇总</h2>
-      <div id="stamp" class="stamp">尚未执行 · STANDBY</div>
-    </div>
-    
-    <div id="empty" class="empty">
-      <span class="empty-kicker">WAITING FOR SCAN</span><br>
-      选择频道后，点击「开始全景扫描」。<br>
-      <small style="color:#888;font-size:11px;">扫描结果将以「电子杂志 × 电子墨水」竖版长页排版呈现。</small>
-    </div>
-
-    <div id="results"></div>
-  </section>
-
-  <!-- 杂志尾页宣言 / Editorial Footer -->
-  <footer class="editorial-footer">
-    <div class="footer-card">
-      <div class="footer-head">
-        <span class="hl-badge">EDITORIAL MANIFESTO</span>
-        <span>OCTOPUS AI · PANORAMA REPORT</span>
-      </div>
-      <div class="footer-author">
-        作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
-      </div>
-      <div class="footer-body">
-        全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
-      </div>
-      <div class="footer-foot">
-        <span>© 章鱼 AI 全景分析 · 微信竖版长页面</span>
-        <span>STYLE A「电子杂志 × 电子墨水」</span>
-      </div>
-    </div>
-  </footer>
-
-</main>
 <script src="app.js"></script>
 </body>
 </html>

@@ -212,86 +212,94 @@ document.querySelector('#push').onclick = async () => {
   if (!token) return alert('请输入 PushPlus Token');
   if (!last.length) return alert('请先执行扫描获取情报数据');
 
-  // === PushPlus Style A「电子杂志 × 电子墨水」微信竖版长页面推送模板 ===
+  // === PushPlus DOS 监视器 · 复古终端 微信竖版长页面推送模板 ===
   const items = last.map((x, i) => x.error ?
-    `<section style="margin:10px 0;padding:10px 12px;border:1.5px solid #000000;border-left:4px solid #000000;background:#ffffff;box-shadow:2px 2px 0 #000000;">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
-        <span style="background:#000000;color:#00ff66;padding:1px 5px;font-size:9.5px;font-weight:700;font-family:monospace,sans-serif;">SCAN ERROR</span>
-        <span style="font-family:monospace,sans-serif;font-size:10.5px;font-weight:700;color:#111111;min-width:0;word-break:break-word;">[${i + 1}] ${esc(x.channel)} · 未完成读取</span>
+    `<section style="margin:10px 0;border:1px solid #b98600;background:#1a1203;box-shadow:0 0 6px rgba(255,176,0,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
+      <div style="display:flex;align-items:center;gap:6px;background:#ffb000;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
+        <span style="background:#041404;color:#ffb000;padding:1px 5px;">■</span>
+        <span>SCAN_ERROR.LOG</span>
+        <span style="margin-left:auto;background:#041404;color:#ffb000;padding:1px 5px;">[${i + 1}] ${esc(x.channel)} · 未完成读取</span>
       </div>
-      <p style="margin:4px 0 0;color:#444444;font-size:11.5px;line-height:1.6;">${esc(x.error)}</p>
+      <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-family:'Courier New',Consolas,monospace;">&gt; ${esc(x.error)}</p>
     </section>`
     :
-    `<section style="margin:10px 0;padding:12px;border:1.5px solid #111111;background:#ffffff;box-shadow:2px 2px 0 #000000;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px 8px;margin-bottom:6px;border-bottom:1px solid #f0f0f0;padding-bottom:6px;flex-wrap:wrap;">
-        <div style="font-family:monospace,sans-serif;font-size:10.5px;color:#111111;font-weight:700;flex:1 1 auto;min-width:0;word-break:break-word;">
-          <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;margin-right:4px;">#${i + 1}</span>
-          ${esc(x.channel)} <span style="color:#666666;font-weight:normal;">· ${esc(x.published)}</span>
+    `<section style="margin:10px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 6px rgba(0,255,102,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0;word-break:break-all;">
+          <span style="background:#041404;color:#00ff66;padding:1px 5px;">#${i + 1}</span>
+          <span>DIR ▸ ${esc(x.channel)}</span>
         </div>
-        ${x.status ? `<span style="font-family:monospace,sans-serif;font-size:9px;color:#555555;background:#f5f6f8;border:1px solid #d8dade;padding:1px 5px;line-height:1.5;flex-shrink:0;margin-left:auto;word-break:break-word;">${esc(x.status)}</span>` : ''}
+        ${x.status ? `<span style="background:#041404;color:#00ff66;padding:1px 5px;flex-shrink:0;">${esc(x.status)}</span>` : ''}
       </div>
-      <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.45;font-weight:700;font-family:'Noto Serif SC',Georgia,serif,sans-serif;">
-        <a href="${esc(x.url)}" style="color:#111111;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">${esc(x.title)}</a>
-      </h3>
-      ${x.transcript ? `
-        <div style="margin-top:8px;padding:8px 10px;background:#f5f6f8;border:1px solid #e2e4e8;border-left:3.5px solid #000000;color:#111111;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
-      ` : `
-        <div style="margin-top:8px;padding:6px 8px;background:#f5f6f8;border:1px dashed #cccccc;color:#777777;font-size:11px;font-style:italic;">该视频未提供公开中文字幕，请点击标题查看原视频。</div>
-      `}
+      <div style="padding:10px 12px;">
+        <div style="color:#1d9e4c;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+        <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.5;font-weight:700;">
+          <a href="${esc(x.url)}" style="color:#7dff9f;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
+        </h3>
+        ${x.transcript ? `
+          <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #00ff66;color:#9dffb0;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
+        ` : `
+          <div style="margin-top:8px;padding:6px 8px;background:#031203;border:1px dashed #1d9e4c;color:#1d9e4c;font-size:11px;font-family:'Courier New',Consolas,monospace;">[404] 该视频未提供公开中文字幕，请点击标题查看原视频。</div>
+        `}
+      </div>
     </section>`
   ).join('');
 
-  const baseContent = `<div style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Serif SC',Georgia,sans-serif;background-color:#eeeff2;color:#111111;padding:16px 12px;font-size:12px;line-height:1.65;max-width:680px;margin:0 auto;box-sizing:border-box;">
-    
-    <!-- 杂志页眉 / Top Issue Bar -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1.5px solid #111111;font-family:monospace,sans-serif;font-size:10px;color:#111111;margin-bottom:12px;letter-spacing:0.5px;">
+  const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#2ee86e;padding:14px 12px;font-size:12px;line-height:1.7;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
+
+    <!-- DOS 顶部命令行 / Command Bar -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px dashed #0d9b4c;font-family:'Courier New',Consolas,monospace;font-size:10px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
       <div style="display:flex;align-items:center;gap:6px;">
-        <span style="display:inline-block;width:7px;height:7px;background:#00ff66;border:1.5px solid #000000;"></span>
-        <span style="font-weight:700;">OCTOPUS AI // 全景分析</span>
+        <span style="display:inline-block;width:7px;height:7px;background:#00ff66;box-shadow:0 0 4px rgba(0,255,102,0.8);"></span>
+        <span style="color:#00ff66;font-weight:700;">C:\\OCTOPUS\\AI&gt; PANORAMA.EXE</span>
       </div>
-      <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;font-size:9px;">STYLE A · 电子杂志 × 电子墨水</span>
+      <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
     </div>
 
-    <!-- 封面看板 / Title Section -->
-    <div style="background:#0a0a0b;border:2px solid #000000;padding:14px 14px;margin-bottom:12px;box-shadow:3px 3px 0 #000000;">
-      <div style="font-family:monospace,sans-serif;font-size:9.5px;color:#00ff66;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">
-        ◈ MULTI-MODEL INTELLIGENCE REPORT
+    <!-- 开机看板 / Boot Screen -->
+    <div style="border:1px solid #0d9b4c;background:#072007;padding:14px;margin-bottom:12px;box-shadow:0 0 8px rgba(0,255,102,0.18);">
+      <div style="font-family:'Courier New',Consolas,monospace;font-size:9.5px;color:#00ff66;letter-spacing:1.5px;margin-bottom:4px;font-weight:700;">
+        ■ SYSTEM BOOT OK · MULTI-MODEL INTELLIGENCE REPORT
       </div>
-      <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:0.5px;line-height:1.25;font-family:'Noto Serif SC',Georgia,serif,sans-serif;">
+      <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:1px;line-height:1.25;font-family:'Courier New',Consolas,'SimSun',monospace;">
         章鱼 AI 全景分析
       </h1>
-      <div style="margin-top:6px;font-size:11.5px;color:#ffffff;line-height:1.55;font-weight:500;">
+      <div style="margin-top:6px;font-size:11.5px;color:#9dffb0;line-height:1.55;">
         全网 AI 调研境内境外数据，由多个大模型混合部署 。
       </div>
-      <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #333333;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:monospace,sans-serif;font-size:10px;color:#aaaaaa;">
-        <span style="background:#000000;color:#00ff66;padding:1px 5px;border:1px solid #00ff66;font-weight:700;">多模型协同</span>
-        <span style="color:#ffffff;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #0d9b4c;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#1d9e4c;">
+        <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;">多模型协同</span>
+        <span style="color:#2ee86e;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
       </div>
+      <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\&gt; TYPE BRIEF.TXT █</div>
     </div>
 
-    <!-- 简报状态条 -->
-    <div style="background:#ffffff;border:1.5px solid #111111;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:monospace,sans-serif;font-size:10px;color:#111111;box-shadow:2px 2px 0 #000000;">
-      <div><span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="font-weight:700;">共 ${last.length} 条视频情报</span></div>
-      <div>规范：台湾/台灣 统一规范为 <span style="background:#000000;color:#00ff66;padding:1px 4px;font-weight:700;">中国台湾</span></div>
+    <!-- 简报状态条 / Status Bar -->
+    <div style="border:1px solid #0d9b4c;background:#031203;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:10px;">
+      <div><span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="color:#2ee86e;font-weight:700;">共 ${last.length} 条视频情报</span></div>
+      <div style="color:#1d9e4c;">规范：台湾/台灣 → <span style="background:#00ff66;color:#041404;padding:1px 4px;font-weight:700;">中国台湾</span> · 全景汇总 · 不含个股页</div>
     </div>
 
     <!-- 视频情报流 -->
     ${items}
 
     <!-- 尾页宣言 / Editorial Manifesto -->
-    <div style="margin-top:16px;border:1.5px solid #111111;background:#ffffff;padding:14px;box-shadow:3px 3px 0 #000000;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:monospace,sans-serif;font-size:9.5px;border-bottom:1px solid #eeeeee;padding-bottom:6px;">
-        <span style="background:#000000;color:#00ff66;padding:1px 5px;font-weight:700;">EDITORIAL MANIFESTO</span>
-        <span style="color:#666666;">章鱼 AI · 全景视野</span>
+    <div style="margin-top:16px;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:9.5px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">
+        <span>EDITORIAL_MANIFESTO.TXT</span>
+        <span>章鱼 AI · 全景视野</span>
       </div>
-      <div style="font-size:12px;font-weight:700;color:#111111;line-height:1.6;margin-bottom:8px;">
-        作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
-      </div>
-      <div style="font-size:11.5px;color:#222222;line-height:1.75;text-align:justify;border-left:3px solid #000000;padding:8px 10px;background:#f5f6f8;margin-bottom:10px;">
-        全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
-      </div>
-      <div style="font-family:monospace,sans-serif;font-size:9px;color:#888888;text-align:center;border-top:1px solid #eeeeee;padding-top:6px;">
-        STYLE A「电子杂志 × 电子墨水」· 微信竖版阅读版 · 仅供研究参考
+      <div style="padding:12px;">
+        <div style="font-size:12px;font-weight:700;color:#00ff66;line-height:1.6;margin-bottom:8px;">
+          作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
+        </div>
+        <div style="font-size:11.5px;color:#9dffb0;line-height:1.75;text-align:justify;border-left:3px solid #00ff66;padding:8px 10px;background:#031203;margin-bottom:10px;">
+          全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+        </div>
+        <div style="font-family:'Courier New',Consolas,monospace;font-size:9px;color:#1d9e4c;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
+          DOS MONITOR · 复古终端 · 微信竖版阅读版 · 仅供研究参考
+        </div>
+        <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
       </div>
     </div>
 
@@ -326,7 +334,7 @@ document.querySelector('#push').onclick = async () => {
     const d = await r.json();
     if (!r.ok || !d.ok) throw Error(d.msg || d.error || ('HTTP ' + r.status));
     const sent = d.sentParts || 1, total = d.totalParts || 1;
-    alert(`✅ 推送成功！\n已推送到微信（PushPlus）—— Style A 电子杂志全景简报已发送！\n${summaryHtml ? '🧠 已附加 AI 主题聚类总结\n' : ''}发送 ${sent}/${total} 条` + (total > 1 ? `（超过限制自动分条发送）` : '') + (d.data ? `\n首条流水号：` + d.data : '') + `\n\n— 章鱼 AI 全景分析 —`);
+    alert(`✅ 推送成功！\n已推送到微信（PushPlus）—— DOS 复古终端全景简报已发送！\n${summaryHtml ? '🧠 已附加 AI 主题聚类总结\n' : ''}发送 ${sent}/${total} 条` + (total > 1 ? `（超过限制自动分条发送）` : '') + (d.data ? `\n首条流水号：` + d.data : '') + `\n\n— 章鱼 AI 全景分析 —`);
     setPushStatus('PUSHED ' + sent + '/' + total);
   } catch (e) {
     alert('推送失败：' + e.message + '\n\n排查提示：\n1. Token 是否正确且已实名认证（2024-08-01 起需实名）\n2. 检查网络连接或 PushPlus 频率限制');
