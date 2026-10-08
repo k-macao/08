@@ -322,18 +322,19 @@ document.querySelector('#push').onclick = async () => {
   if (!freshItems.some(x => !x.error)) return alert('本次扫描未取得任何有效内容（仅剩扫描异常），本次不推送。');
 
   // === PushPlus DOS 监视器 · 复古终端 微信竖版长页面推送模板 ===
-  // 文字明暗层级（微信会剥离 class，因此全部写 inline）：
-  //   L1 #eafff0 必读 —— 视频标题
-  //   L2 #00ff66 强调 —— 关键词、反白徽章
-  //   L3 #8fdca4 正文 —— 字幕摘录
-  //   L4 #63b47f 次要 —— 引导语、免责说明
-  //   L5 #3f8f5b 辅助 —— 状态标签
-  //   L6 #2c6742 元数据 —— 日期、路径、EXIT 装饰行
+  // 文字色深五档（微信会剥离 class，因此全部写 inline）：
+  //   标题 #eafff0 —— 视频标题、今日主线、署名行
+  //   突出 #00ff66 —— 反白徽章、行内高亮词、DOS 窗口标题栏
+  //   重点 #b8f2cb —— 要点列表、关键数字、多空概率数值
+  //   正文 #8fdca4 —— 字幕摘录
+  //   说明 #63b47f —— 补充说明、来源标注、免责提示
+  //   装饰层（非内容五档）：辅助 #3f8f5b 状态标签、元数据 #2c6742 日期/路径/EXIT 行
   const TIER = {
-    key: 'color:#eafff0;font-weight:700;',
+    title: 'color:#eafff0;font-weight:700;',
     accent: 'color:#00ff66;font-weight:700;',
+    focus: 'color:#b8f2cb;font-weight:700;',
     body: 'color:#8fdca4;font-weight:400;',
-    soft: 'color:#63b47f;font-weight:400;',
+    note: 'color:#63b47f;font-weight:400;',
     meta: 'color:#3f8f5b;font-weight:400;',
     dim: 'color:#2c6742;font-weight:400;'
   };
@@ -352,11 +353,11 @@ document.querySelector('#push').onclick = async () => {
         <div style="margin-top:8px;padding:8px 10px;background:#031203;border:1px solid #0d9b4c;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:9px;flex-wrap:wrap;">
             <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
-            <span style="background:#041404;color:#8fdca4;padding:1px 5px;font-weight:400;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+            <span style="background:#041404;color:#b8f2cb;padding:1px 5px;font-weight:700;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
           </div>
-          <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBarPush(bb.bull)} ${bb.bull}%
+          <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBarPush(bb.bull)} ${bb.bull}%
 空 ${lsBarPush(bb.bear)} ${bb.bear}%</div>
-          <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
+          <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#63b47f;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
         </div>`;
   };
 
@@ -381,7 +382,7 @@ document.querySelector('#push').onclick = async () => {
       <div style="padding:10px 12px;">
         <div style="${TIER.dim}font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.publishedLabel || x.published || '')}${x.publishedMacau ? ` · ${esc(x.publishedMacau)}` : ''} · 时效验证 ✓ ${esc(FRESH_WINDOW_LABEL)}内</div>
         <h3 style="margin:6px 0 8px;">
-          <a href="${esc(x.url)}" style="${TIER.key}font-size:13.5px;line-height:1.55;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
+          <a href="${esc(x.url)}" style="${TIER.title}font-size:13.5px;line-height:1.55;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
         </h3>
         ${lsBlockPush(x)}
         ${x.transcript ? `
@@ -405,7 +406,7 @@ document.querySelector('#push').onclick = async () => {
     <!-- 时效验证说明：仅保留最近 72 小时内发布的内容 -->
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px dashed #0d9b4c;background:#031203;font-family:'Courier New',Consolas,monospace;font-size:9.5px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
       <span style="color:#00ff66;font-weight:700;">FRESHNESS CHECK ▸ 只保留最近 ${FRESH_WINDOW_LABEL}内发布的内容</span>
-      <span style="color:#3f8f5b;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${freshItems.length} 条</span>
+      <span style="color:#63b47f;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${freshItems.length} 条</span>
     </div>
 
     <!-- 视频情报流 -->

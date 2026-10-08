@@ -5,30 +5,35 @@
    - DOS 窗口标题栏、命令行提示符 C:\>、块状光标 █
    - 扫描线 + 暗角 + 轻微闪烁，模拟 DOS 时代 CRT 显像管
    - 全部字体偏小（9px - 13.5px），紧凑高信息密度，微信竖版长页面
-   - 文字明暗分六级（L1 必读 → L6 元数据），用亮度/字重/字号区分阅读重点
+   - 文字色深分五档（标题 / 突出 / 重点 / 正文 / 说明），另留两档装饰层
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   文字明暗层级（READING CONTRAST RAMP）
-   靠"亮度 + 字重 + 字号"三重差异区分阅读优先级，越重要越亮越粗：
-     L1 --ink-key   #eafff0  必读：视频标题、关键结论、关键数字
-     L2 --neon      #00ff66  强调：行内关键词、反白徽章、按钮
-     L3 --ink       #8fdca4  正文：字幕摘录、面板说明主句
-     L4 --ink-soft  #63b47f  次要：补充说明、提示语
-     L5 --ink-muted #3f8f5b  辅助：状态、时间、引导文案
-     L6 --ink-dim   #2c6742  元数据：编号、装饰性 DOS 行
-   对应工具类：.t-key / .t-accent / .t-body / .t-sub / .t-meta / .t-dim
+   文字色深层级（READING CONTRAST RAMP）
+   五类文字各占一档色深，互不相同，越重要越亮越粗：
+     标题 --ink-title #eafff0  最亮：视频标题、AI 今日主线、署名行
+     突出 --neon      #00ff66  荧光跳色：反白徽章、按钮、DOS 窗口标题栏、行内高亮词
+     重点 --ink-focus #b8f2cb  亮绿：要点列表、关键数字、多空概率数值、行内重点
+     正文 --ink       #8fdca4  中绿：字幕摘录、段落主句
+     说明 --ink-note  #63b47f  暗绿：补充说明、来源标注、免责提示
+   装饰层（非内容五档）：
+     辅助 --ink-muted #3f8f5b  状态标签、页脚小字
+     元数据 --ink-dim #2c6742  日期、C:\... 路径、时间戳、EXIT 装饰行
+   对应工具类：.t-title / .t-accent / .t-focus / .t-body / .t-note（+ .t-meta / .t-dim）
+   兼容旧类名：.t-key ≡ .t-focus（重点）、.t-sub ≡ .t-note（说明）
    -------------------------------------------------------------------------- */
 :root {
   --bg: #041404;            /* CRT 屏幕底色 */
   --bg-card: #072007;       /* 面板绿黑 */
   --bg-subtle: #031203;     /* 更深的引用底色 */
-  --ink-key: #eafff0;       /* L1 必读重点 */
-  --ink: #8fdca4;           /* L3 终端正文绿 */
-  --ink-secondary: #63b47f; /* L4 浅磷光绿（次要正文）*/
-  --ink-soft: #63b47f;      /* L4 别名，与 --ink-secondary 同值 */
-  --ink-muted: #3f8f5b;     /* L5 暗绿辅助说明 */
-  --ink-dim: #2c6742;       /* L6 最暗元数据 */
+  --ink-title: #eafff0;     /* 标题：最亮 */
+  --ink-focus: #b8f2cb;     /* 重点：亮绿（介于突出与正文之间的专属色深） */
+  --ink: #8fdca4;           /* 正文：终端正文绿 */
+  --ink-note: #63b47f;      /* 说明：暗绿 */
+  --ink-secondary: #63b47f; /* 说明别名，与 --ink-note 同值 */
+  --ink-soft: #63b47f;      /* 说明别名，与 --ink-note 同值 */
+  --ink-muted: #3f8f5b;     /* 装饰 · 辅助：状态、页脚小字 */
+  --ink-dim: #2c6742;       /* 装饰 · 元数据：路径、时间戳 */
   --ink-faint: #1e4d31;     /* 装饰性、可忽略 */
   --border: #0d9b4c;        /* 绿色发丝边框 */
   --border-light: #0a5c2c;  /* 分隔细线 */
@@ -302,11 +307,10 @@ main {
   gap: 6px;
 }
 
-/* ============================ 明暗层级工具类 / Contrast Ramp ============================ */
-/* 只靠"亮度 + 字重 + 字号"三档差异建立阅读顺序，不额外加颜色：
-   重点最亮最粗、正文居中、说明转淡、元数据最暗。 */
-.t-key {
-  color: var(--ink-key);
+/* ============================ 色深层级工具类 / Contrast Ramp ============================ */
+/* 五类文字各一档色深 + 字重：标题最亮最粗、突出荧光跳色、重点亮绿加粗、正文居中、说明转淡。 */
+.t-title {
+  color: var(--ink-title);
   font-weight: 700;
   text-shadow: 0 0 8px rgba(0, 255, 102, 0.35);
 }
@@ -314,12 +318,17 @@ main {
   color: var(--neon);
   font-weight: 700;
 }
+.t-focus {
+  color: var(--ink-focus);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 255, 102, 0.35);
+}
 .t-body {
   color: var(--ink);
   font-weight: 400;
 }
-.t-sub {
-  color: var(--ink-soft);
+.t-note {
+  color: var(--ink-note);
   font-weight: 400;
 }
 .t-meta {
@@ -330,9 +339,12 @@ main {
   color: var(--ink-dim);
   font-weight: 400;
 }
-/* 正文里的行内重点：加亮 + 加粗，形成同段落内的深浅落差 */
+/* 兼容旧类名：t-key ≡ 重点（.t-focus）、t-sub ≡ 说明（.t-note） */
+.t-key { color: var(--ink-focus); font-weight: 700; text-shadow: 0 0 8px rgba(0, 255, 102, 0.35); }
+.t-sub { color: var(--ink-note); font-weight: 400; }
+/* 正文里的行内重点：换成"重点"色深 + 加粗，形成同段落内的深浅落差 */
 .panel-desc b, .hint b, .footer-body b, .item .transcript b {
-  color: var(--ink-key);
+  color: var(--ink-focus);
   font-weight: 700;
 }
 
@@ -569,7 +581,7 @@ main {
   background: transparent;
   border: none;
   outline: none;
-  color: var(--ink-key);
+  color: var(--ink-title);
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.5px;
@@ -593,7 +605,7 @@ main {
   color: var(--ink-muted);
   line-height: 1.65;
 }
-.hint .t-meta { color: var(--ink-dim); }
+.hint .t-note { color: var(--ink-note); }
 
 .push-meta-bar {
   display: flex;
@@ -609,7 +621,7 @@ main {
   color: var(--ink-dim);
   letter-spacing: 0.5px;
 }
-.push-meta-bar b { color: var(--ink-key); font-weight: 700; }
+.push-meta-bar b { color: var(--ink-focus); font-weight: 700; }
 
 /* ============================ 全景情报流 ============================ */
 .report-stream {
@@ -661,7 +673,7 @@ main {
   line-height: 1.9;
 }
 .empty-line { display: block; margin-top: 4px; color: var(--ink); }
-.empty-note { display: block; margin-top: 4px; font-size: 10.5px; color: var(--ink-dim); line-height: 1.7; }
+.empty-note { display: block; margin-top: 4px; font-size: 10.5px; color: var(--ink-note); line-height: 1.7; }
 .empty-kicker {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -726,7 +738,7 @@ main {
   letter-spacing: 0.2px;
 }
 .item h3 a {
-  color: var(--ink-key);
+  color: var(--ink-title);
   text-decoration: underline;
   text-decoration-color: var(--ink-muted);
   text-underline-offset: 3px;
@@ -790,9 +802,9 @@ main {
 }
 .item .longshort .ls-tag {
   background: var(--black);
-  color: var(--ink-soft);
+  color: var(--ink-focus);
   padding: 1px 5px;
-  font-weight: 400;
+  font-weight: 700;
 }
 .item .longshort .ls-row {
   display: flex;
@@ -816,7 +828,7 @@ main {
 .item .longshort .ls-row.bear .ls-bar { color: #6b5210; }
 .item .longshort .ls-note {
   margin-top: 5px;
-  color: var(--ink-dim);
+  color: var(--ink-note);
   font-size: 9px;
   line-height: 1.7;
 }
@@ -877,7 +889,7 @@ main {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--ink-key);
+  color: var(--ink-title);
 }
 .footer-body {
   margin: 8px 12px;
