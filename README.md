@@ -135,3 +135,19 @@ PushPlus 单条消息内容上限约 10 万字。本项目在 `server.js` 和 CI
 
 全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
 ```
+
+---
+
+## 视频画面文字提取（OCR）
+
+`tools/video_ocr.py` 可读取视频画面中出现的文字（字幕条、标题、数据板等），与语音字幕互补。
+
+```bash
+pip install -r tools/requirements-video-ocr.txt
+python3 tools/video_ocr.py ./video.mp4 -o out.md              # 本地视频
+python3 tools/video_ocr.py "https://www.youtube.com/watch?v=ID" --json   # 视频链接（需 yt-dlp）
+python3 tools/video_ocr.py ./video.mp4 --interval 1           # 每秒抽一帧，更细但更慢
+```
+
+流程：ffmpeg 按间隔抽帧 → RapidOCR 识别中英文 → 相邻帧相同文字合并为带时间段的段落。
+注意：英文单词间空格可能丢失，中文不受影响；未接入 `server.js` 的推送流程。
