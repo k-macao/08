@@ -238,9 +238,7 @@ document.querySelector('#push').onclick = async () => {
         </h3>
         ${x.transcript ? `
           <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #00ff66;color:#9dffb0;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
-        ` : `
-          <div style="margin-top:8px;padding:6px 8px;background:#031203;border:1px dashed #1d9e4c;color:#1d9e4c;font-size:11px;font-family:'Courier New',Consolas,monospace;">[404] 该视频未提供公开中文字幕，请点击标题查看原视频。</div>
-        `}
+        ` : ''}
       </div>
     </section>`
   ).join('');
