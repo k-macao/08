@@ -66,8 +66,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check syntax
-        run: node --check server.js && node --check app.js && node --check ai.mjs
+      - name: Check syntax and run self-test
+        # 自测覆盖：72 小时时效验证、AI 多空概率（含无 Key 时的规则降级）、总结块渲染
+        run: npm test
 
       - name: Verify server starts
         timeout-minutes: 2
@@ -155,7 +156,25 @@ jobs:
           node << 'NODE'
           import fs from 'node:fs';
           const scan = JSON.parse(fs.readFileSync('scan_result.json','utf8'));
-          const items = scan.items || [];
+          const allItems = scan.items || [];
+          // 时效验证：只保留最近 72 小时内发布的内容（超时 / 无法验证发布时间 → 隐藏，不推送）
+          const FRESH_WINDOW_MS = 72*60*60*1000;
+          const FRESH_WINDOW_LABEL = '72 小时';
+          const nowMs = Date.now();
+          const isFresh = x => {
+            if (x.error) return true;
+            const t = x.publishedAt ? new Date(x.publishedAt).getTime() : NaN;
+            return Number.isFinite(t) && (nowMs - t) <= FRESH_WINDOW_MS;
+          };
+          const items = allItems.filter(isFresh);
+          const hiddenItems = (scan.hidden || []);
+          console.log(`时效验证：保留 ${items.length} 条，隐藏 ${allItems.length - items.length} 条（服务端另记录 ${hiddenItems.length} 条超时/无法验证）`);
+          if (!items.length || !items.some(x => !x.error)) {
+            console.log(`最近 ${FRESH_WINDOW_LABEL}内没有可推送的有效内容（超时内容已隐藏），本次不推送。`);
+            fs.writeFileSync('brief.html', '<p>最近 ' + FRESH_WINDOW_LABEL + '内没有新的内容（超时内容已隐藏）</p>');
+            fs.writeFileSync('chunks.json', JSON.stringify({ header: '', footer: '', chunks: [], title: '' }, null, 2));
+            process.exit(0);
+          }
 
           const esc = s => String(s||'').replace(/[&<>\"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;' }[c]));
 
@@ -169,6 +188,38 @@ jobs:
               /&gt;\s*(个股页|個股頁|STOCK PAGE)\s*<|>(个股页|個股頁|STOCK PAGE)</.test(m) ? '' : m);
             return out;
           }
+
+          // AI 多空概率（看多 / 看空）条形图：微信会剥离 class，因此全部 inline
+
+          const lsBar = (v, w = 10) => { const k = Math.max(0, Math.min(w, Math.round(v / 100 * w))); return '█'.repeat(k) + '░'.repeat(w - k); };
+
+          const lsBlock = x => {
+
+            const bb = x.bullBear;
+
+            if (!bb || typeof bb.bull !== 'number') return '';
+
+            const src = bb.source === 'ai' ? 'DeepSeek 多空推理' : '本地规则推算（未配置 AI Key）';
+
+            return `<div style="margin-top:8px;padding:8px 10px;background:#031203;border:1px solid #0d9b4c;">
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:9px;flex-wrap:wrap;">
+
+                      <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
+
+                      <span style="background:#041404;color:#8fdca4;padding:1px 5px;font-weight:400;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+
+                    </div>
+
+                    <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBar(bb.bull)} ${bb.bull}%
+
+          空 ${lsBar(bb.bear)} ${bb.bear}%</div>
+
+                    <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
+
+                  </div>`;
+
+          };
 
           const sections = items.map((x,i)=> x.error
             ? `<section style="margin:10px 0;border:1px solid #b98600;background:#1a1203;box-shadow:0 0 6px rgba(255,176,0,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
@@ -188,10 +239,11 @@ jobs:
                   ${x.status?`<span style="background:#041404;color:#8fdca4;padding:1px 5px;flex-shrink:0;font-weight:400;">${esc(x.status)}</span>`:''}
                 </div>
                 <div style="padding:10px 12px;">
-                  <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+                  <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\BRIEF\\LOGS&gt; ${esc(x.publishedLabel || x.published || '')}${x.publishedMacau ? ' · ' + esc(x.publishedMacau) : ''} · 时效验证 ✓ ${FRESH_WINDOW_LABEL}内</div>
                   <h3 style="margin:6px 0 8px;font-size:13.5px;line-height:1.55;font-weight:700;">
                     <a href="${esc(x.url)}" style="color:#eafff0;font-weight:700;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
                   </h3>
+                  ${lsBlock(x)}
                   ${x.transcript ? `
                     <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.75;font-weight:400;">${esc(x.transcript).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span style="color:#2c6742;font-size:10px;">$2</span>')}</div>
                   ` : ''}
@@ -231,6 +283,12 @@ jobs:
                 <span style="color:#00ff66;font-weight:700;">C:\\OCTOPUS\\AI&gt; PANORAMA.EXE</span>
               </div>
               <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
+            </div>
+
+            <!-- 时效验证说明：只保留最近 72 小时内发布的内容 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px dashed #0d9b4c;background:#031203;font-family:'Courier New',Consolas,monospace;font-size:9.5px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
+              <span style="color:#00ff66;font-weight:700;">FRESHNESS CHECK ▸ 只保留最近 ${FRESH_WINDOW_LABEL}内发布的内容</span>
+              <span style="color:#3f8f5b;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${items.length} 条</span>
             </div>
 
             <!-- 视频情报流 -->
@@ -383,7 +441,25 @@ jobs:
             node << 'NODE'
             import fs from 'node:fs';
             const scan = JSON.parse(fs.readFileSync('scan_result.json','utf8'));
-            const items = scan.items || [];
+            const allItems = scan.items || [];
+            // 时效验证：只保留最近 72 小时内发布的内容（超时 / 无法验证发布时间 → 隐藏，不推送）
+            const FRESH_WINDOW_MS = 72*60*60*1000;
+            const FRESH_WINDOW_LABEL = '72 小时';
+            const nowMs = Date.now();
+            const isFresh = x => {
+              if (x.error) return true;
+              const t = x.publishedAt ? new Date(x.publishedAt).getTime() : NaN;
+              return Number.isFinite(t) && (nowMs - t) <= FRESH_WINDOW_MS;
+            };
+            const items = allItems.filter(isFresh);
+            const hiddenItems = (scan.hidden || []);
+            console.log(`时效验证：保留 ${items.length} 条，隐藏 ${allItems.length - items.length} 条（服务端另记录 ${hiddenItems.length} 条超时/无法验证）`);
+            if (!items.length || !items.some(x => !x.error)) {
+              console.log(`最近 ${FRESH_WINDOW_LABEL}内没有可推送的有效内容（超时内容已隐藏），本次不推送。`);
+              fs.writeFileSync('brief.html', '<p>最近 ' + FRESH_WINDOW_LABEL + '内没有新的内容（超时内容已隐藏）</p>');
+              fs.writeFileSync('chunks.json', JSON.stringify({ header: '', footer: '', chunks: [], title: '' }, null, 2));
+              process.exit(0);
+            }
             const esc = s => String(s||'').replace(/[&<>\"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;' }[c]));
 
             // 不推个股页：剥离简报中任何按个股拆分的板块/页面，只保留全景汇总
@@ -396,6 +472,38 @@ jobs:
                 /&gt;\s*(个股页|個股頁|STOCK PAGE)\s*<|>(个股页|個股頁|STOCK PAGE)</.test(m) ? '' : m);
               return out;
             }
+
+            // AI 多空概率（看多 / 看空）条形图：微信会剥离 class，因此全部 inline
+
+            const lsBar = (v, w = 10) => { const k = Math.max(0, Math.min(w, Math.round(v / 100 * w))); return '█'.repeat(k) + '░'.repeat(w - k); };
+
+            const lsBlock = x => {
+
+              const bb = x.bullBear;
+
+              if (!bb || typeof bb.bull !== 'number') return '';
+
+              const src = bb.source === 'ai' ? 'DeepSeek 多空推理' : '本地规则推算（未配置 AI Key）';
+
+              return `<div style="margin-top:8px;padding:8px 10px;background:#031203;border:1px solid #0d9b4c;">
+
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:9px;flex-wrap:wrap;">
+
+                        <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
+
+                        <span style="background:#041404;color:#8fdca4;padding:1px 5px;font-weight:400;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+
+                      </div>
+
+                      <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBar(bb.bull)} ${bb.bull}%
+
+            空 ${lsBar(bb.bear)} ${bb.bear}%</div>
+
+                      <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
+
+                    </div>`;
+
+            };
 
             const sections = items.map((x,i)=> x.error
               ? `<section style="margin:10px 0;border:1px solid #b98600;background:#1a1203;box-shadow:0 0 6px rgba(255,176,0,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
@@ -415,10 +523,11 @@ jobs:
                     ${x.status?`<span style="background:#041404;color:#8fdca4;padding:1px 5px;flex-shrink:0;font-weight:400;">${esc(x.status)}</span>`:''}
                   </div>
                   <div style="padding:10px 12px;">
-                    <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+                    <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\BRIEF\\LOGS&gt; ${esc(x.publishedLabel || x.published || '')}${x.publishedMacau ? ' · ' + esc(x.publishedMacau) : ''} · 时效验证 ✓ ${FRESH_WINDOW_LABEL}内</div>
                     <h3 style="margin:6px 0 8px;font-size:13.5px;line-height:1.55;font-weight:700;">
                       <a href="${esc(x.url)}" style="color:#eafff0;font-weight:700;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
                     </h3>
+                    ${lsBlock(x)}
                     ${x.transcript ? `
                       <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.75;font-weight:400;">${esc(x.transcript).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span style="color:#2c6742;font-size:10px;">$2</span>')}</div>
                     ` : ''}
@@ -458,6 +567,12 @@ jobs:
                   <span style="color:#00ff66;font-weight:700;">C:\\OCTOPUS\\AI&gt; PANORAMA.EXE</span>
                 </div>
                 <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
+              </div>
+
+              <!-- 时效验证说明：只保留最近 72 小时内发布的内容 -->
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px dashed #0d9b4c;background:#031203;font-family:'Courier New',Consolas,monospace;font-size:9.5px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
+                <span style="color:#00ff66;font-weight:700;">FRESHNESS CHECK ▸ 只保留最近 ${FRESH_WINDOW_LABEL}内发布的内容</span>
+                <span style="color:#3f8f5b;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${items.length} 条</span>
               </div>
 
               <!-- 视频情报流 -->
@@ -535,7 +650,7 @@ jobs:
               if(i < chunks.length-1) await new Promise(r=>setTimeout(r,800));
             }
             console.log(`推送完成 ${okCount}/${chunks.length}`);
-            NODE
+          NODE
           fi
 
           kill $SERVER_PID 2>/dev/null || true
