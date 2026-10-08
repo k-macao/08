@@ -215,10 +215,10 @@ export function renderSummaryHtml(summary, meta = {}) {
 
   const li = (arr, badgeText = '::') => (arr && arr.length)
     ? `<ul style="margin:6px 0 0 0;padding:0;list-style:none;font-family:'Courier New',Consolas,'SimSun',monospace;">${arr.map(x => `
-        <li style="margin:4px 0;padding:5px 8px;background:#031203;border-left:3px solid #00ff66;color:#2ee86e;font-size:11.5px;line-height:1.65;">
+        <li style="margin:4px 0;padding:5px 8px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;font-weight:400;font-size:11.5px;line-height:1.7;">
           <span style="color:#00ff66;font-weight:700;margin-right:6px;">${esc(badgeText)}</span>${esc(x)}
         </li>`).join('')}</ul>`
-    : '<p style="margin:6px 0 0;color:#1d9e4c;font-size:11px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
+    : '<p style="margin:6px 0 0;color:#3f8f5b;font-size:10.5px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
 
   return [
     '<section style="margin:12px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:\'Courier New\',Consolas,\'SimSun\',monospace;">',
@@ -236,8 +236,8 @@ export function renderSummaryHtml(summary, meta = {}) {
           '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#00ff66;font-weight:700;letter-spacing:1px;margin-bottom:6px;">',
             '▌TODAY MAIN QUEST / 今日主线',
           '</div>',
-          `<p style="margin:0;color:#9dffb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;font-size:11.5px;">${esc(summary.main)}</p>`,
-          '<div style="margin-top:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\&gt; MAIN.TXT █</div>',
+          `<p style="margin:0;color:#eafff0;font-weight:700;line-height:1.85;white-space:pre-wrap;word-break:break-word;font-size:12px;">${esc(summary.main)}</p>`,
+          '<div style="margin-top:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#2c6742;">C:\\&gt; MAIN.TXT █</div>',
         '</div>',
         // ── 热点 ──
         '<div style="margin-top:10px;">',
@@ -262,9 +262,6 @@ export function renderSummaryHtml(summary, meta = {}) {
             '<span>&gt; 机会点 · OPPORTUNITIES.DAT</span>',
           '</div>',
           li(summary.opportunities, '+'),
-        '</div>',
-        '<div style="margin-top:10px;padding-top:6px;border-top:1px dashed #0d9b4c;font-family:\'Courier New\',Consolas,monospace;font-size:9px;color:#1d9e4c;text-align:center;">',
-          'DOS MONITOR · 复古终端 · 全景汇总（不含个股页） · 多模型协同推理决策',
         '</div>',
       '</div>',
     '</section>'

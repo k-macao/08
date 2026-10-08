@@ -4,17 +4,32 @@
    - 等宽终端字体（VT323 / JetBrains Mono / Noto Sans SC）
    - DOS 窗口标题栏、命令行提示符 C:\>、块状光标 █
    - 扫描线 + 暗角 + 轻微闪烁，模拟 DOS 时代 CRT 显像管
-   - 全部字体偏小（10px - 13px），紧凑高信息密度，微信竖版长页面
+   - 全部字体偏小（9px - 13.5px），紧凑高信息密度，微信竖版长页面
+   - 文字明暗分六级（L1 必读 → L6 元数据），用亮度/字重/字号区分阅读重点
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   文字明暗层级（READING CONTRAST RAMP）
+   靠"亮度 + 字重 + 字号"三重差异区分阅读优先级，越重要越亮越粗：
+     L1 --ink-key   #eafff0  必读：视频标题、关键结论、关键数字
+     L2 --neon      #00ff66  强调：行内关键词、反白徽章、按钮
+     L3 --ink       #8fdca4  正文：字幕摘录、面板说明主句
+     L4 --ink-soft  #63b47f  次要：补充说明、提示语
+     L5 --ink-muted #3f8f5b  辅助：状态、时间、引导文案
+     L6 --ink-dim   #2c6742  元数据：编号、装饰性 DOS 行
+   对应工具类：.t-key / .t-accent / .t-body / .t-sub / .t-meta / .t-dim
+   -------------------------------------------------------------------------- */
 :root {
   --bg: #041404;            /* CRT 屏幕底色 */
   --bg-card: #072007;       /* 面板绿黑 */
   --bg-subtle: #031203;     /* 更深的引用底色 */
-  --ink: #2ee86e;           /* 终端正文绿 */
-  --ink-secondary: #9dffb0; /* 浅磷光绿 */
-  --ink-muted: #1d9e4c;     /* 暗绿辅助说明 */
-  --ink-dim: #14703a;       /* 最暗元数据 */
+  --ink-key: #eafff0;       /* L1 必读重点 */
+  --ink: #8fdca4;           /* L3 终端正文绿 */
+  --ink-secondary: #63b47f; /* L4 浅磷光绿（次要正文）*/
+  --ink-soft: #63b47f;      /* L4 别名，与 --ink-secondary 同值 */
+  --ink-muted: #3f8f5b;     /* L5 暗绿辅助说明 */
+  --ink-dim: #2c6742;       /* L6 最暗元数据 */
+  --ink-faint: #1e4d31;     /* 装饰性、可忽略 */
   --border: #0d9b4c;        /* 绿色发丝边框 */
   --border-light: #0a5c2c;  /* 分隔细线 */
   --neon: #00ff66;          /* 荧光绿 */
@@ -37,7 +52,7 @@ body {
   background-image:
     radial-gradient(ellipse at 50% -20%, #2a2622 0%, transparent 60%),
     radial-gradient(ellipse at 50% 120%, #0c0b09 0%, transparent 55%);
-  color: var(--ink);
+  color: var(--ink);            /* L3 正文基调：整体偏柔，重点由组件单独提亮 */
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.65;
@@ -185,9 +200,9 @@ main {
 .boot-line {
   margin-top: 10px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--neon);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-dim);
   letter-spacing: 0.8px;
 }
 .footer-boot { margin-top: 10px; }
@@ -222,7 +237,7 @@ main {
   font-weight: 700;
   margin-bottom: 12px;
   letter-spacing: 0.5px;
-  color: var(--ink);
+  color: var(--ink-muted);
 }
 
 .issue-left {
@@ -250,96 +265,39 @@ main {
   gap: 6px;
 }
 
-/* ============================ 开机看板 / Hero ============================ */
-.hero-cover {
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  box-shadow: var(--shadow);
-  padding: 16px 14px;
-  margin-bottom: 14px;
-  position: relative;
-}
-
-.kicker {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
+/* ============================ 明暗层级工具类 / Contrast Ramp ============================ */
+/* 只靠"亮度 + 字重 + 字号"三档差异建立阅读顺序，不额外加颜色：
+   重点最亮最粗、正文居中、说明转淡、元数据最暗。 */
+.t-key {
+  color: var(--ink-key);
   font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 255, 102, 0.35);
+}
+.t-accent {
   color: var(--neon);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.main-title {
-  margin: 0;
-  font-family: var(--font-term), var(--font-sans);
-  font-size: 30px;
   font-weight: 700;
-  line-height: 1.2;
-  color: var(--neon);
-  letter-spacing: 2px;
-  text-shadow: 0 0 12px rgba(0, 255, 102, 0.55);
 }
-
-.sub-title {
-  margin: 8px 0 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-secondary);
-  line-height: 1.6;
+.t-body {
+  color: var(--ink);
+  font-weight: 400;
 }
-
-.hero-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 14px;
+.t-sub {
+  color: var(--ink-soft);
+  font-weight: 400;
 }
-
-.meta-card {
-  border: 1px solid var(--border);
-  background: var(--bg-subtle);
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.m-lbl {
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
+.t-meta {
   color: var(--ink-muted);
+  font-weight: 400;
 }
-.m-val {
-  font-family: var(--font-term), var(--font-mono);
-  font-size: 20px;
+.t-dim {
+  color: var(--ink-dim);
+  font-weight: 400;
+}
+/* 正文里的行内重点：加亮 + 加粗，形成同段落内的深浅落差 */
+.panel-desc b, .hint b, .footer-body b, .item .transcript b {
+  color: var(--ink-key);
   font-weight: 700;
-  color: var(--neon);
-  letter-spacing: 1px;
 }
-.m-sub {
-  font-family: var(--font-sans);
-  font-size: 9.5px;
-  color: var(--ink-muted);
-}
-
-.hero-manifesto {
-  margin-top: 12px;
-  padding: 8px 10px;
-  border: 1px dashed var(--border);
-  background: var(--bg-subtle);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  line-height: 1.7;
-  color: var(--ink-secondary);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: baseline;
-}
-.hero-manifesto b { color: var(--neon); }
 
 /* ============================ DOS 窗口面板 ============================ */
 .section-panel {
@@ -381,6 +339,7 @@ main {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
+  opacity: 0.78;
 }
 
 .icon-tag {
@@ -396,9 +355,12 @@ main {
   margin: 0 0 10px;
   font-family: var(--font-sans);
   font-size: 11px;
-  line-height: 1.7;
-  color: var(--ink-secondary);
+  line-height: 1.75;
+  color: var(--ink-soft);
 }
+.panel-desc .t-body { display: block; }
+.panel-desc .t-sub { display: block; margin-top: 2px; font-size: 10.5px; }
+.panel-desc .t-key { font-size: 11.5px; }
 
 /* ============================ 按钮（DOS 按键） ============================ */
 .btn-primary, .btn-secondary, .btn-ghost {
@@ -474,7 +436,7 @@ main {
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.8px;
-  color: var(--ink-muted);
+  color: var(--ink-dim);
   margin-bottom: 4px;
 }
 .meter-track {
@@ -515,13 +477,13 @@ main {
   padding: 3px 7px;
   font-family: var(--font-sans);
   font-size: 10.5px;
-  color: var(--ink-secondary);
+  color: var(--ink-muted);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.channel:hover { border-color: var(--border); }
+.channel:hover { border-color: var(--border); color: var(--ink); }
 .channel:has(input:checked) {
   background: var(--neon);
   color: var(--black);
@@ -540,18 +502,37 @@ main {
   padding: 6px 10px;
   margin-top: 4px;
 }
+.field-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.input-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--neon);
+  letter-spacing: 0.5px;
+}
+.btn-sub {
+  font-size: 11px;
+  opacity: 0.72;
+  font-weight: 400;
+}
 .input-row input {
   flex: 1;
   min-width: 0;
   background: transparent;
   border: none;
   outline: none;
-  color: var(--neon);
+  color: var(--ink-key);
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.5px;
 }
-.input-row input::placeholder { color: var(--ink-dim); }
+.input-row input::placeholder { color: var(--ink-dim); font-weight: 400; }
 
 .input-light {
   width: 9px;
@@ -568,8 +549,9 @@ main {
   font-family: var(--font-sans);
   font-size: 10px;
   color: var(--ink-muted);
-  line-height: 1.6;
+  line-height: 1.65;
 }
+.hint .t-meta { color: var(--ink-dim); }
 
 .push-meta-bar {
   display: flex;
@@ -582,10 +564,10 @@ main {
   background: var(--bg-subtle);
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--ink-muted);
+  color: var(--ink-dim);
   letter-spacing: 0.5px;
 }
-.push-meta-bar b { color: var(--neon); }
+.push-meta-bar b { color: var(--ink-key); font-weight: 700; }
 
 /* ============================ 全景情报流 ============================ */
 .report-stream {
@@ -609,7 +591,7 @@ main {
   font-family: var(--font-mono);
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--neon);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -633,9 +615,11 @@ main {
   text-align: center;
   font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--ink-secondary);
+  color: var(--ink-soft);
   line-height: 1.9;
 }
+.empty-line { display: block; margin-top: 4px; color: var(--ink); }
+.empty-note { display: block; margin-top: 4px; font-size: 10.5px; color: var(--ink-dim); line-height: 1.7; }
 .empty-kicker {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -665,11 +649,13 @@ main {
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+/* 日期 / 状态 / 方向 = 元数据，压到浅绿，不与标题抢注意力 */
 .item .meta > div:last-child {
   background: var(--black);
-  color: var(--neon);
+  color: var(--ink-soft);
   padding: 1px 5px;
   font-size: 9px;
+  font-weight: 400;
 }
 .item .ch-name {
   display: flex;
@@ -680,41 +666,69 @@ main {
 }
 .item .ch-name .hl-badge {
   background: var(--black);
-  color: var(--neon);
+  color: var(--ink-soft);
+  font-weight: 400;
 }
+/* 标题 = L1 必读：最亮、最粗、字号最大，并带轻微磷光溢出 */
 .item h3 {
   margin: 8px 12px 6px;
   font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.55;
   font-weight: 700;
+  letter-spacing: 0.2px;
 }
 .item h3 a {
-  color: var(--neon-alt);
+  color: var(--ink-key);
   text-decoration: underline;
+  text-decoration-color: var(--ink-muted);
   text-underline-offset: 3px;
   word-break: break-all;
+  text-shadow: 0 0 10px rgba(0, 255, 102, 0.45);
 }
+.item h3 a:hover {
+  color: var(--neon);
+  text-decoration-color: var(--neon);
+}
+/* 字幕摘录 = L3 正文：比标题暗一档、比元数据亮一档 */
 .item .transcript {
   margin: 8px 12px 12px;
   padding: 8px 10px;
   background: var(--bg-subtle);
-  border-left: 3px solid var(--neon);
-  color: var(--ink-secondary);
+  border-left: 3px solid var(--border);
+  color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--font-sans);
   font-size: 11.5px;
+  font-weight: 400;
   line-height: 1.75;
+}
+/* 字幕里的时间戳（00:00 / 03:12）压成最暗一层，行首时间轴不再抢正文 */
+.item .transcript .ts {
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
 }
 .item .no-sub {
   margin: 8px 12px 12px;
   padding: 6px 8px;
   background: var(--bg-subtle);
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-light);
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 400;
+}
+/* 异常条目说明：琥珀色系，正文比标题淡 */
+.item .err-detail { color: var(--amber); }
+.item .err-note {
+  display: block;
+  margin-top: 4px;
+  color: #8a6a12;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 .item.error {
   border-color: var(--amber);
@@ -755,12 +769,16 @@ main {
   background: var(--black);
   color: var(--neon);
 }
+.footer-head span:last-child {
+  opacity: 0.72;
+  font-weight: 400;
+}
 .footer-author {
   padding: 10px 12px 0;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--neon);
+  color: var(--ink-key);
 }
 .footer-body {
   margin: 8px 12px;
@@ -770,8 +788,15 @@ main {
   font-family: var(--font-sans);
   font-size: 11.5px;
   line-height: 1.8;
-  color: var(--ink-secondary);
+  color: var(--ink-soft);
+  font-weight: 400;
   text-align: justify;
+}
+/* 尾注里的关键句提亮一档，形成段内深浅落差 */
+.footer-body em {
+  font-style: normal;
+  color: var(--neon);
+  font-weight: 700;
 }
 .footer-foot {
   display: flex;
@@ -780,10 +805,10 @@ main {
   flex-wrap: wrap;
   margin: 0 12px;
   padding-top: 8px;
-  border-top: 1px dashed var(--border);
+  border-top: 1px dashed var(--border-light);
   font-family: var(--font-mono);
   font-size: 9px;
-  color: var(--ink-dim);
+  color: var(--ink-faint);
   letter-spacing: 0.5px;
 }
 .footer-boot {
@@ -794,14 +819,10 @@ main {
 @media (max-width: 720px) {
   .desk { padding: 12px 8px 24px; }
   .monitor { padding: 10px 10px 12px; border-radius: 16px; }
-  .main-title { font-size: 25px; letter-spacing: 1px; }
-  .hero-meta-grid { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-  .m-val { font-size: 17px; }
+  .item h3 { font-size: 12.5px; }
 }
 
 @media (max-width: 520px) {
-  .hero-meta-grid { grid-template-columns: 1fr; }
-  .main-title { font-size: 22px; }
   .channels { grid-template-columns: 1fr 1fr; max-height: 220px; }
   .top-issue-bar { font-size: 9px; }
   .monitor-knob { display: none; }
