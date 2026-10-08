@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check app.js && node --check ai.mjs && node --check freshness.mjs && node --check longshort.mjs",
+    "check": "node --check server.js && node --check app.js && node --check ai.mjs && node --check freshness.mjs && node --check longshort.mjs && node --check seekingalpha.mjs",
     "test": "npm run check && node test/selftest.mjs"
   }
 }

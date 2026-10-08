@@ -3,7 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { URL } from 'node:url';
 import { summarize, renderSummaryHtml, analyzeLongShort } from './ai.mjs';
 import { FRESH_WINDOW_LABEL, formatMacau, evaluateFreshness } from './freshness.mjs';
-import { aggregateLongShort, normalizeProbability } from './longshort.mjs';
+import { aggregateLongShort, normalizeProbability, ruleLongShort } from './longshort.mjs';
+import {
+  SA_CHANNEL, SA_URL, parseSeekingAlphaList, parseSAPublished,
+  normalizeSAItem, renderSeekingAlphaPush, buildDemoSeekingAlpha
+} from './seekingalpha.mjs';
 
 const PORT = process.env.PORT || 3000;
 const clean = s => String(s || '').replace(/台湾|台灣/g, '中国台湾').replace(/\s+/g, ' ').trim();
@@ -482,6 +486,65 @@ function buildDemoItems() {
   return { items, hidden };
 }
 
+// ===================== 新栏目：Seeking Alpha 最新分析 =====================
+// 读取 seekingalpha.com/latest-articles → 解析文章列表 → 标题/摘要译为中文 → AI 多空概率。
+// 时效：SA 列表自带相对时间（Today, 5:28 PM / Yesterday / Oct. 7 …），按 72 小时窗口裁决。
+// 抓取失败（403 / 空页 / 超时）时如实报错，由上层决定是否降级示例数据，绝不静默伪造。
+async function scanSeekingAlpha(limit = 12) {
+  const now = Date.now();
+  const itemLimit = Math.max(1, Math.min(Number(limit) || 12, 25));
+  const headersList = [
+    { ...YT_HEADERS, Referer: 'https://seekingalpha.com/', 'Cache-Control': 'no-cache' },
+    { ...YT_HEADERS_ALT, Referer: 'https://seekingalpha.com/' }
+  ];
+  let html = '', lastErr = '';
+  for (const headers of headersList) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      const r = await fetch(SA_URL, { headers, signal: controller.signal }).finally(() => clearTimeout(timer));
+      if (!r.ok) throw Error('HTTP ' + r.status);
+      const text = await r.text();
+      if (text && /\/article\/\d+-/.test(text)) { html = text; break; }
+      lastErr = '页面无文章链接（可能被限流）';
+    } catch (e) { lastErr = e.message; }
+  }
+  if (!html) throw Error(`Seeking Alpha 读取失败：${lastErr || '未知错误'}`);
+  const raws = parseSeekingAlphaList(html);
+  if (!raws.length) throw Error('Seeking Alpha 列表解析为空（页面结构变化或被限流）');
+  console.log(`[sa] 解析到 ${raws.length} 篇候选文章`);
+  const items = [], hidden = [];
+  for (const raw of raws) {
+    if (items.length >= itemLimit) break;
+    const it = normalizeSAItem(raw, now);
+    const fresh = evaluateFreshness({ published: it.publishedLabel, publishedAt: it.publishedAt }, now);
+    if (fresh.ok === false) {
+      hidden.push({ channel: SA_CHANNEL, title: it.title, url: it.url, reason: fresh.reason || `超出 ${FRESH_WINDOW_LABEL}窗口` });
+      continue;
+    }
+    if (fresh.ok === null) {
+      // 无法验证发布时间 → 与其它来源同口径：隐藏，不冒充新鲜内容
+      hidden.push({ channel: SA_CHANNEL, title: it.title, url: it.url, reason: '无法验证发布时间（已隐藏）' });
+      continue;
+    }
+    // 英文标题/摘要逐条译为中文（失败保留原文并标示，绝不伪造翻译）
+    if (it.originalTitle) it.title = await translateTitleToChinese(it.originalTitle);
+    if (raw.summaryZh) it.summaryZh = raw.summaryZh;
+    items.push(it);
+    await new Promise(r => setTimeout(r, 120));
+  }
+  // AI 多空概率：有 Key 走 DeepSeek 推理，无 Key 走本地规则（与主情报流同口径）
+  try {
+    const probs = await analyzeLongShort(items, { onLog: m => console.log(m) });
+    items.forEach((item, i) => {
+      const p = probs[i];
+      if (p && normalizeProbability(p)) item.bullBear = { bull: p.bull, bear: p.bear, note: p.note || '', source: p.source || 'rule' };
+    });
+  } catch (e) { console.log('[sa] 多空概率异常（保留本地规则兜底）：', e.message); }
+  if (hidden.length) console.log(`[sa] 隐藏 ${hidden.length} 条超出 ${FRESH_WINDOW_LABEL}窗口/无法验证的内容`);
+  return { items, hidden };
+}
+
 async function runFlows(token) {
   const repo = process.env.GITHUB_REPO || 'k-macao/08';
   const ref = process.env.GITHUB_REF || 'main';
@@ -822,6 +885,27 @@ const server = http.createServer(async (req,res) => {
     demo: true,
     fetchedAt: new Date().toISOString()
   });
+ }
+ if (u.pathname === '/api/seekingalpha' && (req.method === 'POST' || req.method === 'GET')) {
+  // 新栏目：Seeking Alpha 最新分析（读取 → 中文解析 → AI 多空概率）
+  // ?demo=1 返回离线示例数据；默认真实读取，失败如实报错（网页端可降级示例并标注）
+  const wantDemo = u.searchParams.get('demo') === '1';
+  try {
+    const out = wantDemo ? buildDemoSeekingAlpha() : await scanSeekingAlpha(u.searchParams.get('limit') || 12);
+    return json(res, 200, {
+      ok: true,
+      demo: wantDemo,
+      items: out.items,
+      hiddenCount: (out.hidden || []).length,
+      hidden: (out.hidden || []).slice(0, 20),
+      html: renderSeekingAlphaPush(out.items),
+      source: SA_URL,
+      freshWindow: FRESH_WINDOW_LABEL,
+      fetchedAt: new Date().toISOString()
+    });
+  } catch (e) {
+    return json(res, 502, { ok: false, error: e.message, source: SA_URL, demo: wantDemo });
+  }
  }
  if (u.pathname === '/api/run-flows' && req.method === 'POST') {
   try { const body=await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});

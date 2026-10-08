@@ -207,15 +207,15 @@ jobs:
 
                       <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
 
-                      <span style="background:#041404;color:#8fdca4;padding:1px 5px;font-weight:400;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+                      <span style="background:#041404;color:#b8f2cb;padding:1px 5px;font-weight:700;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
 
                     </div>
 
-                    <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBar(bb.bull)} ${bb.bull}%
+                    <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBar(bb.bull)} ${bb.bull}%
 
           空 ${lsBar(bb.bear)} ${bb.bear}%</div>
 
-                    <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
+                    <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#63b47f;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
 
                   </div>`;
 
@@ -288,7 +288,7 @@ jobs:
             <!-- 时效验证说明：只保留最近 72 小时内发布的内容 -->
             <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px dashed #0d9b4c;background:#031203;font-family:'Courier New',Consolas,monospace;font-size:9.5px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
               <span style="color:#00ff66;font-weight:700;">FRESHNESS CHECK ▸ 只保留最近 ${FRESH_WINDOW_LABEL}内发布的内容</span>
-              <span style="color:#3f8f5b;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${items.length} 条</span>
+              <span style="color:#63b47f;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${items.length} 条</span>
             </div>
 
             <!-- 视频情报流 -->
@@ -316,8 +316,23 @@ jobs:
 
           </div>`;
 
+          // 新栏目：Seeking Alpha 最新分析（仅真实读取成功时附加，失败静默降级，绝不推送示例数据）
+          let saHtml = '';
+          try {
+            const saR = await fetch('http://localhost:3000/api/seekingalpha');
+            const saD = await saR.json();
+            if (saR.ok && saD && saD.ok && !saD.demo && saD.html) {
+              saHtml = saD.html;
+              console.log(`✅ 已附加 SEEKING ALPHA 最新分析栏目（${(saD.items || []).length} 条）`);
+            } else {
+              console.log('ℹ️ Seeking Alpha 栏目未附加：', (saD && saD.error) || ('HTTP ' + saR.status));
+            }
+          } catch (e) {
+            console.log('ℹ️ Seeking Alpha 栏目异常，跳过：', e.message);
+          }
+
           // 不推个股页：发送前剥离个股板块/个股页
-          const content = stripStockSections((summaryHtml || '') + baseContent);
+          const content = stripStockSections((summaryHtml || '') + saHtml + baseContent);
           const title = '章鱼 AI 全景分析';
           fs.writeFileSync('brief.html', content);
 
@@ -491,15 +506,15 @@ jobs:
 
                         <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
 
-                        <span style="background:#041404;color:#8fdca4;padding:1px 5px;font-weight:400;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+                        <span style="background:#041404;color:#b8f2cb;padding:1px 5px;font-weight:700;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
 
                       </div>
 
-                      <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBar(bb.bull)} ${bb.bull}%
+                      <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBar(bb.bull)} ${bb.bull}%
 
             空 ${lsBar(bb.bear)} ${bb.bear}%</div>
 
-                      <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
+                      <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#63b47f;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
 
                     </div>`;
 
@@ -572,7 +587,7 @@ jobs:
               <!-- 时效验证说明：只保留最近 72 小时内发布的内容 -->
               <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px dashed #0d9b4c;background:#031203;font-family:'Courier New',Consolas,monospace;font-size:9.5px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
                 <span style="color:#00ff66;font-weight:700;">FRESHNESS CHECK ▸ 只保留最近 ${FRESH_WINDOW_LABEL}内发布的内容</span>
-                <span style="color:#3f8f5b;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${items.length} 条</span>
+                <span style="color:#63b47f;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${items.length} 条</span>
               </div>
 
               <!-- 视频情报流 -->
@@ -600,8 +615,23 @@ jobs:
 
             </div>`;
 
+            // 新栏目：Seeking Alpha 最新分析（仅真实读取成功时附加，失败静默降级，绝不推送示例数据）
+            let saHtml = '';
+            try {
+              const saR = await fetch('http://localhost:3000/api/seekingalpha');
+              const saD = await saR.json();
+              if (saR.ok && saD && saD.ok && !saD.demo && saD.html) {
+                saHtml = saD.html;
+                console.log(`✅ 已附加 SEEKING ALPHA 最新分析栏目（${(saD.items || []).length} 条）`);
+              } else {
+                console.log('ℹ️ Seeking Alpha 栏目未附加：', (saD && saD.error) || ('HTTP ' + saR.status));
+              }
+            } catch (e) {
+              console.log('ℹ️ Seeking Alpha 栏目异常，跳过：', e.message);
+            }
+
             // 不推个股页：发送前剥离个股板块/个股页
-            const content = stripStockSections((summaryHtml || '') + baseContent);
+            const content = stripStockSections((summaryHtml || '') + saHtml + baseContent);
             const title = '章鱼 AI 全景分析';
             fs.writeFileSync('brief.html', content);
 

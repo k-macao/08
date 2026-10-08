@@ -318,10 +318,10 @@ export function renderSummaryHtml(summary, meta = {}) {
 
   const li = (arr, badgeText = '::') => (arr && arr.length)
     ? `<ul style="margin:6px 0 0 0;padding:0;list-style:none;font-family:'Courier New',Consolas,'SimSun',monospace;">${arr.map(x => `
-        <li style="margin:4px 0;padding:5px 8px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;font-weight:400;font-size:11.5px;line-height:1.7;">
+        <li style="margin:4px 0;padding:5px 8px;background:#031203;border-left:3px solid #0d9b4c;color:#b8f2cb;font-weight:700;font-size:11.5px;line-height:1.7;">
           <span style="color:#00ff66;font-weight:700;margin-right:6px;">${esc(badgeText)}</span>${esc(x)}
         </li>`).join('')}</ul>`
-    : '<p style="margin:6px 0 0;color:#3f8f5b;font-size:10.5px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
+    : '<p style="margin:6px 0 0;color:#63b47f;font-size:10.5px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
 
   return [
     '<section style="margin:12px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:\'Courier New\',Consolas,\'SimSun\',monospace;">',
@@ -348,10 +348,10 @@ export function renderSummaryHtml(summary, meta = {}) {
             '<div style="display:flex;align-items:center;gap:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;letter-spacing:0.5px;margin-bottom:6px;">' +
               '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">L/S</span>' +
               '<span>&gt; AI 多空概率 · LONG_SHORT.PROB</span>' +
-              '<span style="margin-left:auto;background:#041404;color:#8fdca4;padding:1px 5px;font-size:9px;font-weight:400;">多 ' + ls.bull + '% / 空 ' + ls.bear + '%</span>' +
+              '<span style="margin-left:auto;background:#041404;color:#b8f2cb;padding:1px 5px;font-size:9px;font-weight:700;">多 ' + ls.bull + '% / 空 ' + ls.bear + '%</span>' +
             '</div>' +
-            '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;">' + esc(lsBar) + '</div>' +
-            '<div style="margin-top:4px;font-family:\'Courier New\',Consolas,monospace;font-size:9px;color:#3f8f5b;">基于 ' + Number(meta.longShort.count || itemCount) + ' 条内容 · ' + esc(lsSource) + ' · 仅供研究参考，不构成投资建议</div>' +
+            '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;">' + esc(lsBar) + '</div>' +
+            '<div style="margin-top:4px;font-family:\'Courier New\',Consolas,monospace;font-size:9px;color:#63b47f;">基于 ' + Number(meta.longShort.count || itemCount) + ' 条内容 · ' + esc(lsSource) + ' · 仅供研究参考，不构成投资建议</div>' +
           '</div>'
         ) : '',
         // ── 热点 ──
