@@ -3,7 +3,6 @@ const sourceNames=`信報財經新聞|Finance730|香港經濟日報 HKET|香港�
 const ENGLISH_SOURCE_START = 56;
 const MAX_REPORT_ITEMS = 50;
 const box = document.querySelector('#channels');
-const totalEl = document.querySelector('#hero-channels');
 box.innerHTML = sourceNames.map(n => `<label class="channel"><input type="checkbox" value="${n}" checked> <span>${n}</span></label>`).join('');
 const checked = () => [...box.querySelectorAll(':checked')].map(x => x.value);
 // 在 50 条上限内交错排入中英文来源，避免默认全选时英文内容被中文频道完全挤出。
@@ -37,8 +36,7 @@ function setPushStatus(t) {
 const count = () => {
   const c = checked().length, total = sourceNames.length;
   const countEl = document.querySelector('#count');
-  if (countEl) countEl.textContent = `// ${c}/${total} CH`;
-  if (totalEl) totalEl.textContent = `${c} CH`;
+  if (countEl) countEl.textContent = `// ${c}/${total} CH · 已选 ${Math.round(c / total * 100)}%`;
 };
 box.onchange = count;
 count();
@@ -54,6 +52,15 @@ function esc(s = '') {
   return s.replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
 }
 
+/**
+ * 字幕排版 + 明暗层级：
+ * 把行首时间戳（00:12 / 01:02:03）压到最暗一层（.ts），
+ * 正文保持 L3，标题保持 L1 —— 眼睛先读标题，再读内容，时间轴只做锚点。
+ */
+function fmtTranscript(text = '') {
+  return esc(text).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span class="ts">$2</span>');
+}
+
 function render(items) {
   const out = document.querySelector('#results');
   const empty = document.querySelector('#empty');
@@ -61,12 +68,12 @@ function render(items) {
   out.innerHTML = items.map((x, i) => x.error ? `
     <article class="item error">
       <div class="meta">
-        <span class="ch-name">[${i + 1}] ${esc(x.channel)}</span>
+        <span class="ch-name"><span class="hl-badge">[${i + 1}]</span> ${esc(x.channel)}</span>
         <span class="hl-badge">SCAN ERROR</span>
       </div>
-      <h3 style="margin:4px 0;font-size:12px;color:#990000;">未完成读取</h3>
-      <p style="margin:4px 0 0;font-size:11.5px;color:#555;">${esc(x.error)}</p>
-      <small style="display:block;margin-top:4px;color:#888;font-size:10px;">已自动尝试 5 个搜索方向 × 多套解析策略 × 多字幕方向仍未命中，可稍后重试。</small>
+      <h3 style="margin:4px 12px;font-size:12.5px;color:var(--amber);">未完成读取</h3>
+      <p class="err-detail" style="margin:4px 12px 0;font-size:11.5px;">${esc(x.error)}</p>
+      <small class="err-note" style="margin:4px 12px 10px;">已自动尝试 5 个搜索方向 × 多套解析策略 × 多字幕方向仍未命中，可稍后重试。</small>
     </article>` : `
     <article class="item">
       <div class="meta">
@@ -77,7 +84,7 @@ function render(items) {
         <div>${esc(x.published)} · ${esc(x.status || '')}${x.direction ? ` · ${esc(x.direction)}` : ''}</div>
       </div>
       <h3><a href="${esc(x.url)}" target="_blank" rel="noreferrer">${esc(x.title)}</a></h3>
-      ${x.transcript ? `<div class="transcript">${esc(x.transcript)}</div>` : '<div class="no-sub">该视频未能读取公开中文字幕，请点击标题观看原视频。</div>'}
+      ${x.transcript ? `<div class="transcript">${fmtTranscript(x.transcript)}</div>` : '<div class="no-sub">该视频未能读取公开中文字幕，请点击标题观看原视频。</div>'}
     </article>`
   ).join('');
   updatePushMeta();
@@ -213,37 +220,55 @@ document.querySelector('#push').onclick = async () => {
   if (!last.length) return alert('请先执行扫描获取情报数据');
 
   // === PushPlus DOS 监视器 · 复古终端 微信竖版长页面推送模板 ===
+  // 文字明暗层级（微信会剥离 class，因此全部写 inline）：
+  //   L1 #eafff0 必读 —— 视频标题
+  //   L2 #00ff66 强调 —— 关键词、反白徽章
+  //   L3 #8fdca4 正文 —— 字幕摘录
+  //   L4 #63b47f 次要 —— 引导语、免责说明
+  //   L5 #3f8f5b 辅助 —— 状态标签
+  //   L6 #2c6742 元数据 —— 日期、路径、EXIT 装饰行
+  const TIER = {
+    key: 'color:#eafff0;font-weight:700;',
+    accent: 'color:#00ff66;font-weight:700;',
+    body: 'color:#8fdca4;font-weight:400;',
+    soft: 'color:#63b47f;font-weight:400;',
+    meta: 'color:#3f8f5b;font-weight:400;',
+    dim: 'color:#2c6742;font-weight:400;'
+  };
+  // 字幕行首时间戳（00:12）压到最暗一层，只当锚点用
+  const fmtPush = t => esc(t).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span style="color:#2c6742;font-size:10px;">$2</span>');
+
   const items = last.map((x, i) => x.error ?
     `<section style="margin:10px 0;border:1px solid #b98600;background:#1a1203;box-shadow:0 0 6px rgba(255,176,0,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
       <div style="display:flex;align-items:center;gap:6px;background:#ffb000;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
         <span style="background:#041404;color:#ffb000;padding:1px 5px;">■</span>
         <span>SCAN_ERROR.LOG</span>
-        <span style="margin-left:auto;background:#041404;color:#ffb000;padding:1px 5px;">[${i + 1}] ${esc(x.channel)} · 未完成读取</span>
+        <span style="margin-left:auto;background:#041404;color:#8a6a12;padding:1px 5px;font-weight:400;">[${i + 1}] ${esc(x.channel)} · 未完成读取</span>
       </div>
-      <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-family:'Courier New',Consolas,monospace;">&gt; ${esc(x.error)}</p>
+      <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-family:'Courier New',Consolas,monospace;font-weight:700;">&gt; ${esc(x.error)}</p>
     </section>`
     :
     `<section style="margin:10px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 6px rgba(0,255,102,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;min-width:0;word-break:break-all;">
-          <span style="background:#041404;color:#00ff66;padding:1px 5px;">#${i + 1}</span>
+          <span style="background:#041404;color:#00ff66;padding:1px 5px;font-weight:400;">#${i + 1}</span>
           <span>DIR ▸ ${esc(x.channel)}</span>
         </div>
-        ${x.status ? `<span style="background:#041404;color:#00ff66;padding:1px 5px;flex-shrink:0;">${esc(x.status)}</span>` : ''}
+        ${x.status ? `<span style="background:#041404;padding:1px 5px;flex-shrink:0;${TIER.body}">${esc(x.status)}</span>` : ''}
       </div>
       <div style="padding:10px 12px;">
-        <div style="color:#1d9e4c;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
-        <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.5;font-weight:700;">
-          <a href="${esc(x.url)}" style="color:#7dff9f;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
+        <div style="${TIER.dim}font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+        <h3 style="margin:6px 0 8px;">
+          <a href="${esc(x.url)}" style="${TIER.key}font-size:13.5px;line-height:1.55;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
         </h3>
         ${x.transcript ? `
-          <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #00ff66;color:#9dffb0;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
+          <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;${TIER.body}font-size:11.5px;line-height:1.75;">${fmtPush(x.transcript)}</div>
         ` : ''}
       </div>
     </section>`
   ).join('');
 
-  const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#2ee86e;padding:14px 12px;font-size:12px;line-height:1.7;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
+  const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#8fdca4;padding:14px 12px;font-size:12px;line-height:1.7;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
 
     <!-- DOS 顶部命令行 / Command Bar -->
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px dashed #0d9b4c;font-family:'Courier New',Consolas,monospace;font-size:10px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
@@ -254,30 +279,6 @@ document.querySelector('#push').onclick = async () => {
       <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
     </div>
 
-    <!-- 开机看板 / Boot Screen -->
-    <div style="border:1px solid #0d9b4c;background:#072007;padding:14px;margin-bottom:12px;box-shadow:0 0 8px rgba(0,255,102,0.18);">
-      <div style="font-family:'Courier New',Consolas,monospace;font-size:9.5px;color:#00ff66;letter-spacing:1.5px;margin-bottom:4px;font-weight:700;">
-        ■ SYSTEM BOOT OK · MULTI-MODEL INTELLIGENCE REPORT
-      </div>
-      <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:1px;line-height:1.25;font-family:'Courier New',Consolas,'SimSun',monospace;">
-        章鱼 AI 全景分析
-      </h1>
-      <div style="margin-top:6px;font-size:11.5px;color:#9dffb0;line-height:1.55;">
-        全网 AI 调研境内境外数据，由多个大模型混合部署 。
-      </div>
-      <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #0d9b4c;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#1d9e4c;">
-        <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;">多模型协同</span>
-        <span style="color:#2ee86e;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
-      </div>
-      <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\&gt; TYPE BRIEF.TXT █</div>
-    </div>
-
-    <!-- 简报状态条 / Status Bar -->
-    <div style="border:1px solid #0d9b4c;background:#031203;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:10px;">
-      <div><span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="color:#2ee86e;font-weight:700;">共 ${last.length} 条视频情报</span></div>
-      <div style="color:#1d9e4c;">规范：台湾/台灣 → <span style="background:#00ff66;color:#041404;padding:1px 4px;font-weight:700;">中国台湾</span> · 全景汇总 · 不含个股页</div>
-    </div>
-
     <!-- 视频情报流 -->
     ${items}
 
@@ -285,19 +286,19 @@ document.querySelector('#push').onclick = async () => {
     <div style="margin-top:16px;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);">
       <div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:9.5px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">
         <span>EDITORIAL_MANIFESTO.TXT</span>
-        <span>章鱼 AI · 全景视野</span>
+        <span style="font-weight:400;opacity:0.75;">章鱼 AI · 全景视野</span>
       </div>
       <div style="padding:12px;">
-        <div style="font-size:12px;font-weight:700;color:#00ff66;line-height:1.6;margin-bottom:8px;">
+        <div style="font-size:12px;color:#eafff0;font-weight:700;line-height:1.6;margin-bottom:8px;">
           作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
         </div>
-        <div style="font-size:11.5px;color:#9dffb0;line-height:1.75;text-align:justify;border-left:3px solid #00ff66;padding:8px 10px;background:#031203;margin-bottom:10px;">
-          全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+        <div style="font-size:11.5px;color:#63b47f;line-height:1.8;text-align:justify;border-left:3px solid #0d9b4c;padding:8px 10px;background:#031203;margin-bottom:10px;">
+          <span style="${TIER.accent}">全网境内外为你寻找蛛丝马迹-提供全景视野分析</span> 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
         </div>
-        <div style="font-family:'Courier New',Consolas,monospace;font-size:9px;color:#1d9e4c;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
+        <div style="${TIER.meta}font-family:'Courier New',Consolas,monospace;font-size:9px;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
           DOS MONITOR · 复古终端 · 微信竖版阅读版 · 仅供研究参考
         </div>
-        <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
+        <div style="${TIER.dim}font-family:'Courier New',Consolas,monospace;font-size:10px;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
       </div>
     </div>
 

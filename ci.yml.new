@@ -175,25 +175,25 @@ jobs:
                 <div style="display:flex;align-items:center;gap:6px;background:#ffb000;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
                   <span style="background:#041404;color:#ffb000;padding:1px 5px;">■</span>
                   <span>SCAN_ERROR.LOG</span>
-                  <span style="margin-left:auto;background:#041404;color:#ffb000;padding:1px 5px;">[${i+1}] ${esc(x.channel)} · 未完成读取</span>
+                  <span style="margin-left:auto;background:#041404;color:#8a6a12;padding:1px 5px;font-weight:400;">[${i+1}] ${esc(x.channel)} · 未完成读取</span>
                 </div>
-                <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-family:'Courier New',Consolas,monospace;">&gt; ${esc(x.error)}</p>
+                <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-weight:700;font-family:'Courier New',Consolas,monospace;">&gt; ${esc(x.error)}</p>
               </section>`
             : `<section style="margin:10px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 6px rgba(0,255,102,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
                   <div style="display:flex;align-items:center;gap:6px;min-width:0;word-break:break-all;">
-                    <span style="background:#041404;color:#00ff66;padding:1px 5px;">#${i+1}</span>
+                    <span style="background:#041404;color:#00ff66;padding:1px 5px;font-weight:400;">#${i+1}</span>
                     <span>DIR ▸ ${esc(x.channel)}</span>
                   </div>
-                  ${x.status?`<span style="background:#041404;color:#00ff66;padding:1px 5px;flex-shrink:0;">${esc(x.status)}</span>`:''}
+                  ${x.status?`<span style="background:#041404;color:#8fdca4;padding:1px 5px;flex-shrink:0;font-weight:400;">${esc(x.status)}</span>`:''}
                 </div>
                 <div style="padding:10px 12px;">
-                  <div style="color:#1d9e4c;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
-                  <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.5;font-weight:700;">
-                    <a href="${esc(x.url)}" style="color:#7dff9f;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
+                  <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+                  <h3 style="margin:6px 0 8px;font-size:13.5px;line-height:1.55;font-weight:700;">
+                    <a href="${esc(x.url)}" style="color:#eafff0;font-weight:700;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
                   </h3>
                   ${x.transcript ? `
-                    <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #00ff66;color:#9dffb0;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
+                    <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.75;font-weight:400;">${esc(x.transcript).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span style="color:#2c6742;font-size:10px;">$2</span>')}</div>
                   ` : ''}
                 </div>
               </section>`
@@ -222,7 +222,7 @@ jobs:
             console.log('ℹ️ 未启用 AI 总结（ENABLE_AI_SUMMARY 或 DEEPSEEK_API_KEY 缺失）');
           }
 
-          const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#2ee86e;padding:14px 12px;font-size:12px;line-height:1.7;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
+          const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#8fdca4;padding:14px 12px;font-size:12px;line-height:1.75;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
 
             <!-- DOS 顶部命令行 / Command Bar -->
             <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px dashed #0d9b4c;font-family:'Courier New',Consolas,monospace;font-size:10px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
@@ -233,30 +233,6 @@ jobs:
               <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
             </div>
 
-            <!-- 开机看板 / Boot Screen -->
-            <div style="border:1px solid #0d9b4c;background:#072007;padding:14px;margin-bottom:12px;box-shadow:0 0 8px rgba(0,255,102,0.18);">
-              <div style="font-family:'Courier New',Consolas,monospace;font-size:9.5px;color:#00ff66;letter-spacing:1.5px;margin-bottom:4px;font-weight:700;">
-                ■ SYSTEM BOOT OK · MULTI-MODEL INTELLIGENCE REPORT
-              </div>
-              <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:1px;line-height:1.25;font-family:'Courier New',Consolas,'SimSun',monospace;">
-                章鱼 AI 全景分析
-              </h1>
-              <div style="margin-top:6px;font-size:11.5px;color:#9dffb0;line-height:1.55;">
-                全网 AI 调研境内境外数据，由多个大模型混合部署 。
-              </div>
-              <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #0d9b4c;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#1d9e4c;">
-                <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;">多模型协同</span>
-                <span style="color:#2ee86e;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
-              </div>
-              <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\&gt; TYPE BRIEF.TXT █</div>
-            </div>
-
-            <!-- 简报状态条 / Status Bar -->
-            <div style="border:1px solid #0d9b4c;background:#031203;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:10px;">
-              <div><span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="color:#2ee86e;font-weight:700;">共 ${items.length} 条视频情报</span></div>
-              <div style="color:#1d9e4c;">规范：台湾/台灣 → <span style="background:#00ff66;color:#041404;padding:1px 4px;font-weight:700;">中国台湾</span> · 全景汇总 · 不含个股页</div>
-            </div>
-
             <!-- 视频情报流 -->
             ${sections}
 
@@ -264,19 +240,19 @@ jobs:
             <div style="margin-top:16px;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);">
               <div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:9.5px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">
                 <span>EDITORIAL_MANIFESTO.TXT</span>
-                <span>章鱼 AI · 全景视野</span>
+                <span style="font-weight:400;opacity:0.75;">章鱼 AI · 全景视野</span>
               </div>
               <div style="padding:12px;">
-                <div style="font-size:12px;font-weight:700;color:#00ff66;line-height:1.6;margin-bottom:8px;">
+                <div style="font-size:12px;font-weight:700;color:#eafff0;line-height:1.6;margin-bottom:8px;">
                   作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
                 </div>
-                <div style="font-size:11.5px;color:#9dffb0;line-height:1.75;text-align:justify;border-left:3px solid #00ff66;padding:8px 10px;background:#031203;margin-bottom:10px;">
-                  全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+                <div style="font-size:11.5px;color:#63b47f;line-height:1.8;text-align:justify;border-left:3px solid #0d9b4c;padding:8px 10px;background:#031203;margin-bottom:10px;">
+                  <span style="color:#00ff66;font-weight:700;">全网境内外为你寻找蛛丝马迹-提供全景视野分析</span> 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
                 </div>
-                <div style="font-family:'Courier New',Consolas,monospace;font-size:9px;color:#1d9e4c;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
+                <div style="font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;font-weight:400;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
                   DOS MONITOR · 复古终端 · 微信竖版阅读版 · 仅供研究参考
                 </div>
-                <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
+                <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#2c6742;font-weight:400;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
               </div>
             </div>
 
@@ -426,25 +402,25 @@ jobs:
                   <div style="display:flex;align-items:center;gap:6px;background:#ffb000;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
                     <span style="background:#041404;color:#ffb000;padding:1px 5px;">■</span>
                     <span>SCAN_ERROR.LOG</span>
-                    <span style="margin-left:auto;background:#041404;color:#ffb000;padding:1px 5px;">[${i+1}] ${esc(x.channel)} · 未完成读取</span>
+                    <span style="margin-left:auto;background:#041404;color:#8a6a12;padding:1px 5px;font-weight:400;">[${i+1}] ${esc(x.channel)} · 未完成读取</span>
                   </div>
-                  <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-family:'Courier New',Consolas,monospace;">&gt; ${esc(x.error)}</p>
+                  <p style="margin:8px 10px;color:#ffb000;font-size:11.5px;line-height:1.6;font-weight:700;font-family:'Courier New',Consolas,monospace;">&gt; ${esc(x.error)}</p>
                 </section>`
               : `<section style="margin:10px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 6px rgba(0,255,102,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:6px;min-width:0;word-break:break-all;">
-                      <span style="background:#041404;color:#00ff66;padding:1px 5px;">#${i+1}</span>
+                      <span style="background:#041404;color:#00ff66;padding:1px 5px;font-weight:400;">#${i+1}</span>
                       <span>DIR ▸ ${esc(x.channel)}</span>
                     </div>
-                    ${x.status?`<span style="background:#041404;color:#00ff66;padding:1px 5px;flex-shrink:0;">${esc(x.status)}</span>`:''}
+                    ${x.status?`<span style="background:#041404;color:#8fdca4;padding:1px 5px;flex-shrink:0;font-weight:400;">${esc(x.status)}</span>`:''}
                   </div>
                   <div style="padding:10px 12px;">
-                    <div style="color:#1d9e4c;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
-                    <h3 style="margin:6px 0 8px;font-size:13px;line-height:1.5;font-weight:700;">
-                      <a href="${esc(x.url)}" style="color:#7dff9f;text-decoration:underline;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
+                    <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+                    <h3 style="margin:6px 0 8px;font-size:13.5px;line-height:1.55;font-weight:700;">
+                      <a href="${esc(x.url)}" style="color:#eafff0;font-weight:700;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
                     </h3>
                     ${x.transcript ? `
-                      <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #00ff66;color:#9dffb0;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.7;">${esc(x.transcript)}</div>
+                      <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.75;font-weight:400;">${esc(x.transcript).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span style="color:#2c6742;font-size:10px;">$2</span>')}</div>
                     ` : ''}
                   </div>
                 </section>`
@@ -473,7 +449,7 @@ jobs:
               console.log('ℹ️ 未配置 DEEPSEEK_API_KEY，跳过 AI 总结');
             }
 
-            const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#2ee86e;padding:14px 12px;font-size:12px;line-height:1.7;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
+            const baseContent = `<div style="font-family:'Courier New',Consolas,'SimSun',monospace;background-color:#041404;color:#8fdca4;padding:14px 12px;font-size:12px;line-height:1.75;max-width:680px;margin:0 auto;box-sizing:border-box;letter-spacing:0.3px;">
 
               <!-- DOS 顶部命令行 / Command Bar -->
               <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px dashed #0d9b4c;font-family:'Courier New',Consolas,monospace;font-size:10px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
@@ -484,30 +460,6 @@ jobs:
                 <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
               </div>
 
-              <!-- 开机看板 / Boot Screen -->
-              <div style="border:1px solid #0d9b4c;background:#072007;padding:14px;margin-bottom:12px;box-shadow:0 0 8px rgba(0,255,102,0.18);">
-                <div style="font-family:'Courier New',Consolas,monospace;font-size:9.5px;color:#00ff66;letter-spacing:1.5px;margin-bottom:4px;font-weight:700;">
-                  ■ SYSTEM BOOT OK · MULTI-MODEL INTELLIGENCE REPORT
-                </div>
-                <h1 style="margin:0;font-size:19px;font-weight:900;color:#00ff66;letter-spacing:1px;line-height:1.25;font-family:'Courier New',Consolas,'SimSun',monospace;">
-                  章鱼 AI 全景分析
-                </h1>
-                <div style="margin-top:6px;font-size:11.5px;color:#9dffb0;line-height:1.55;">
-                  全网 AI 调研境内境外数据，由多个大模型混合部署 。
-                </div>
-                <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #0d9b4c;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#1d9e4c;">
-                  <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;">多模型协同</span>
-                  <span style="color:#2ee86e;">Claude · ChatGPT · Gemini · Grok · Qwen · Kimi</span>
-                </div>
-                <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\&gt; TYPE BRIEF.TXT █</div>
-              </div>
-
-              <!-- 简报状态条 / Status Bar -->
-              <div style="border:1px solid #0d9b4c;background:#031203;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:10px;">
-                <div><span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;margin-right:5px;">情报流</span> <span style="color:#2ee86e;font-weight:700;">共 ${items.length} 条视频情报</span></div>
-                <div style="color:#1d9e4c;">规范：台湾/台灣 → <span style="background:#00ff66;color:#041404;padding:1px 4px;font-weight:700;">中国台湾</span> · 全景汇总 · 不含个股页</div>
-              </div>
-
               <!-- 视频情报流 -->
               ${sections}
 
@@ -515,19 +467,19 @@ jobs:
               <div style="margin-top:16px;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);">
                 <div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:9.5px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">
                   <span>EDITORIAL_MANIFESTO.TXT</span>
-                  <span>章鱼 AI · 全景视野</span>
+                  <span style="font-weight:400;opacity:0.75;">章鱼 AI · 全景视野</span>
                 </div>
                 <div style="padding:12px;">
-                  <div style="font-size:12px;font-weight:700;color:#00ff66;line-height:1.6;margin-bottom:8px;">
+                  <div style="font-size:12px;font-weight:700;color:#eafff0;line-height:1.6;margin-bottom:8px;">
                     作者：章鱼 ai &nbsp; &nbsp; &nbsp; 仅供参考，分析研究
                   </div>
-                  <div style="font-size:11.5px;color:#9dffb0;line-height:1.75;text-align:justify;border-left:3px solid #00ff66;padding:8px 10px;background:#031203;margin-bottom:10px;">
-                    全网境内外为你寻找蛛丝马迹-提供全景视野分析 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
+                  <div style="font-size:11.5px;color:#63b47f;line-height:1.8;text-align:justify;border-left:3px solid #0d9b4c;padding:8px 10px;background:#031203;margin-bottom:10px;">
+                    <span style="color:#00ff66;font-weight:700;">全网境内外为你寻找蛛丝马迹-提供全景视野分析</span> 由多模型协同推理决策 ，底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。 根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]
                   </div>
-                  <div style="font-family:'Courier New',Consolas,monospace;font-size:9px;color:#1d9e4c;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
+                  <div style="font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;font-weight:400;text-align:center;border-top:1px dashed #0d9b4c;padding-top:6px;">
                     DOS MONITOR · 复古终端 · 微信竖版阅读版 · 仅供研究参考
                   </div>
-                  <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
+                  <div style="margin-top:8px;font-family:'Courier New',Consolas,monospace;font-size:10px;color:#2c6742;font-weight:400;">C:\\OCTOPUS\\AI&gt; EXIT<span>█</span></div>
                 </div>
               </div>
 
