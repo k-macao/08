@@ -347,7 +347,7 @@ export function renderSummaryHtml(summary, meta = {}) {
           '<div style="margin-top:10px;background:#031203;border:1px solid #0d9b4c;padding:8px 10px;">' +
             '<div style="display:flex;align-items:center;gap:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;letter-spacing:0.5px;margin-bottom:6px;">' +
               '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">L/S</span>' +
-              '<span>&gt; AI 多空概率 · LONG_SHORT.PROB</span>' +
+              '<span>&gt; AI 多空概率</span>' +
               '<span style="margin-left:auto;background:#041404;color:#b8f2cb;padding:1px 5px;font-size:9px;font-weight:700;">多 ' + ls.bull + '% / 空 ' + ls.bear + '%</span>' +
             '</div>' +
             '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;">' + esc(lsBar) + '</div>' +

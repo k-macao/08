@@ -127,7 +127,8 @@ t('renderSummaryHtml 输出多空概率面板与风险/机会', () => {
     { main: '主线', hotTopics: ['热点A'], risks: ['风险A'], opportunities: ['机会A'], perVideo: {} },
     { itemCount: 2, longShort: { bull: 58, bear: 42, count: 2, source: 'ai' } }
   );
-  assert.match(html, /AI 多空概率 · LONG_SHORT\.PROB/);
+  assert.match(html, /AI 多空概率/);
+  assert.ok(!/LONG_SHORT\.PROB/.test(html));
   assert.match(html, /多 58% \/ 空 42%/);
   assert.match(html, /DeepSeek 多空推理/);
   assert.match(html, /HOT_TOPICS\.DAT/);
