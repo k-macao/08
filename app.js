@@ -164,7 +164,7 @@ if (tokenInput) {
       light.style.background = '#00ff66';
       light.style.boxShadow = '0 0 6px #00ff66';
     } else {
-      light.style.background = '#cccccc';
+      light.style.background = '#0a5c2c';   /* 熄灭态与 CSS --border-light 一致，不用灰色 */
       light.style.boxShadow = 'none';
     }
   });

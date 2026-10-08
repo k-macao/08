@@ -44,7 +44,12 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;                       /* 表单/滚动条跟随暗色，避免系统亮色控件露底 */
+  scrollbar-width: thin;                    /* Firefox：绿色细滚动条 */
+  scrollbar-color: var(--border) var(--bg-subtle);
+}
 
 body {
   margin: 0;
@@ -131,13 +136,23 @@ a:hover {
 /* 显示器屏幕（CRT） */
 .screen {
   background: var(--bg);
-  background-image: radial-gradient(ellipse at 50% 40%, #0a240a 0%, var(--bg) 75%);
+  background-image:
+    radial-gradient(ellipse at 50% -12%, rgba(0, 255, 102, 0.10) 0%, transparent 58%),
+    radial-gradient(ellipse at 50% 40%, #0a240a 0%, var(--bg) 75%);
   border: 2px solid #0a0d0a;
   border-radius: 12px;
   box-shadow:
     0 0 30px rgba(0, 255, 102, 0.12) inset,
     0 0 2px rgba(0, 0, 0, 0.9) inset;
   overflow: hidden;
+  animation: crt-power-on 640ms cubic-bezier(0.2, 0.8, 0.3, 1) both; /* 开机亮屏 */
+}
+/* CRT 通电瞬间：先压成一条亮线，再展开成全屏 */
+@keyframes crt-power-on {
+  0%   { transform: scaleY(0.006) scaleX(1.02); filter: brightness(2.6); }
+  38%  { transform: scaleY(0.03) scaleX(1.01); filter: brightness(1.9); }
+  62%  { transform: scaleY(1) scaleX(1); filter: brightness(1.5); }
+  100% { transform: none; filter: brightness(1); }
 }
 
 .monitor-base {
@@ -164,10 +179,32 @@ a:hover {
   inset: 0;
   pointer-events: none;
   z-index: 9999;
+  overflow: hidden;
   background:
     repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 3px),
     radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, 0.38) 100%);
   animation: crt-flicker 7s infinite steps(2, end);
+}
+/* 缓慢下滚的刷新亮带（场频感） */
+.crt-overlay::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26vh;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 255, 102, 0.035) 42%,
+    rgba(0, 255, 102, 0.06) 50%,
+    rgba(0, 255, 102, 0.035) 58%,
+    transparent 100%
+  );
+  animation: crt-roll 8s linear infinite;
+}
+@keyframes crt-roll {
+  0%   { transform: translateY(-30vh); }
+  100% { transform: translateY(130vh); }
 }
 @keyframes crt-flicker {
   0%, 100% { opacity: 1; }
@@ -182,7 +219,7 @@ a:hover {
 main {
   max-width: 680px;
   margin: 0 auto;
-  padding: 16px 14px 40px;
+  padding: 18px 14px 44px;
   position: relative;
 }
 
@@ -305,7 +342,7 @@ main {
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
   padding: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .panelhead {
@@ -501,6 +538,11 @@ main {
   background: var(--bg-subtle);
   padding: 6px 10px;
   margin-top: 4px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input-row:focus-within {
+  border-color: var(--neon);
+  box-shadow: var(--shadow-sm);
 }
 .field-label {
   display: block;
@@ -634,6 +676,11 @@ main {
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
   margin: 10px 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.item:hover {
+  border-color: var(--neon);
+  box-shadow: var(--shadow);
 }
 .item .meta {
   display: flex;
@@ -883,4 +930,16 @@ main {
 @media (max-width: 380px) {
   .channels { grid-template-columns: 1fr; }
   .item h3 { font-size: 12px; }
+}
+
+/* ============================ 动效减弱 ============================ */
+/* 系统开启「减弱动态效果」时：保留全部视觉，只关掉闪烁 / 亮带 / 亮屏动画，
+   光标保持常亮（否则 steps 动画停在 opacity:0 会让光标消失） */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .screen { animation: none; }
+  .crt-overlay { animation: none; }
+  .crt-overlay::after { animation: none; opacity: 0.55; transform: none; }
+  .cursor, .dot-neon, .empty-kicker::after { animation: none; opacity: 1; }
+  *, *::before, *::after { transition-duration: 0.001ms !important; }
 }
