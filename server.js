@@ -1,7 +1,9 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { URL } from 'node:url';
-import { summarize, renderSummaryHtml } from './ai.mjs';
+import { summarize, renderSummaryHtml, analyzeLongShort } from './ai.mjs';
+import { FRESH_WINDOW_LABEL, formatMacau, evaluateFreshness } from './freshness.mjs';
+import { aggregateLongShort, normalizeProbability } from './longshort.mjs';
 
 const PORT = process.env.PORT || 3000;
 const clean = s => String(s || '').replace(/台湾|台灣/g, '中国台湾').replace(/\s+/g, ' ').trim();
@@ -73,6 +75,21 @@ function buildSearchQueries(name) {
 }
 
 // ===================== 解析方向：多正则/多结构解析 =====================
+const MAX_CANDIDATES = 6; // 每个内容源先解析最多 6 条候选，再按“最近 72 小时”时效验证，最终保留最多 3 条
+
+// 以 videoId 起点切出「这一条视频」自己的数据块（到下一个 videoId 为止，上限 6000 字符）。
+// 这样取 publishedTimeText 时不会误抓到下一条视频的发布时间 —— 抓不到就留空，
+// 交给 watch 页的绝对发布时间复核（仍无法验证则隐藏）。
+function videoBlockOf(src, startIdx) {
+  const next = src.indexOf('"videoId"', startIdx + 11);
+  const end = next === -1 ? startIdx + 6000 : Math.min(next, startIdx + 6000);
+  return src.slice(startIdx, end);
+}
+function pickPublishedTime(block) {
+  const m = block.match(/"publishedTimeText":\{"simpleText":"([^"]+)"/);
+  return m ? m[1] : '';
+}
+
 function parseVideosWithStrategies(html) {
   const found = [];
   const seen = new Set();
@@ -80,39 +97,38 @@ function parseVideosWithStrategies(html) {
     if (!id || seen.has(id)) return;
     if (!/^[\w-]{11}$/.test(id)) return;
     seen.add(id);
-    found.push({ id, title: clean(decode(title || '未知标题')), published: clean(decode(published || '刚刚')), url: 'https://www.youtube.com/watch?v=' + id, _from: from });
+    // 发布时间未知时留空（不再默认“刚刚”），由 scan() 逐条做 72 小时时效验证
+    found.push({ id, title: clean(decode(title || '未知标题')), published: clean(decode(published || '')), url: 'https://www.youtube.com/watch?v=' + id, _from: from });
   };
 
   // 策略1：原精确结构 title.runs.text（最常见）
   try {
     const rx = /"videoId":"([\w-]{11})"[\s\S]{0,1800}?"title":\{"runs":\[\{"text":"([\s\S]*?)"\}/g;
-    let m; while ((m = rx.exec(html)) && found.length < 3) {
-      const tail = html.slice(m.index, m.index + 5000);
-      const pub = (tail.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [, '刚刚'])[1];
+    let m; while ((m = rx.exec(html)) && found.length < MAX_CANDIDATES) {
+      const pub = pickPublishedTime(videoBlockOf(html, m.index));
       push(m[1], m[2], pub, 's1-runs');
     }
   } catch {}
 
   // 策略2：simpleText 标题（部分页面/小型频道）
-  if (found.length < 3) {
+  if (found.length < MAX_CANDIDATES) {
     try {
       const rx2 = /"videoId":"([\w-]{11})"[\s\S]{0,2200}?"simpleText":"([^"]+)"/g;
-      let m; while ((m = rx2.exec(html)) && found.length < 3) {
+      let m; while ((m = rx2.exec(html)) && found.length < MAX_CANDIDATES) {
         if (m[2].length < 2) continue;
         // 过滤明显非视频的导航文本
         if (/^(首页|Shorts|直播|频道|播放列表)/.test(m[2])) continue;
-        const tail = html.slice(m.index, m.index + 5000);
-        const pub = (tail.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [, '刚刚'])[1];
+        const pub = pickPublishedTime(videoBlockOf(html, m.index));
         push(m[1], m[2], pub, 's2-simpleText');
       }
     } catch {}
   }
 
   // 策略3：通用 videoId 扫描 + 就近标题回退（应对页面结构微调）
-  if (found.length < 3) {
+  if (found.length < MAX_CANDIDATES) {
     try {
       const vidRx = /"videoId":"([\w-]{11})"/g;
-      let m; while ((m = vidRx.exec(html)) && found.length < 3) {
+      let m; while ((m = vidRx.exec(html)) && found.length < MAX_CANDIDATES) {
         if (seen.has(m[1])) continue;
         const slice = html.slice(m.index, m.index + 6000);
         let tm = slice.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
@@ -120,25 +136,25 @@ function parseVideosWithStrategies(html) {
         if (!tm) tm = slice.match(/"text":"([^"]+)"/);
         if (!tm) continue;
         if (tm[1].length < 2) continue;
-        const pub = (slice.match(/"publishedTimeText":\{"simpleText":"([^"]+)/) || [, '刚刚'])[1];
+        const pub = pickPublishedTime(videoBlockOf(html, m.index));
         push(m[1], tm[1], pub, 's3-generic');
       }
     } catch {}
   }
 
   // 策略4：ytInitialData 截断内的 videoRenderer（应对 consent/变形 HTML）
-  if (found.length < 3) {
+  if (found.length < MAX_CANDIDATES) {
     try {
       const ytMatch = html.match(/var ytInitialData\s*=\s*(\{[\s\S]+?\});/);
       const source = ytMatch ? ytMatch[1] : html;
       const rx = /"videoId":"([\w-]{11})"/g;
-      let m; while ((m = rx.exec(source)) && found.length < 3) {
+      let m; while ((m = rx.exec(source)) && found.length < MAX_CANDIDATES) {
         if (seen.has(m[1])) continue;
         const slice = source.slice(m.index, m.index + 4000);
         let tm = slice.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
         if (!tm) tm = slice.match(/"simpleText":"([^"]+)"/);
         const title = tm ? tm[1] : '未知标题';
-        push(m[1], title, '刚刚', 's4-ytInitialData');
+        push(m[1], title, '', 's4-ytInitialData');
       }
     } catch {}
   }
@@ -147,19 +163,19 @@ function parseVideosWithStrategies(html) {
   if (!found.length) {
     try {
       const rx = /\/watch\?v=([\w-]{11})/g;
-      let m; while ((m = rx.exec(html)) && found.length < 3) {
+      let m; while ((m = rx.exec(html)) && found.length < MAX_CANDIDATES) {
         if (seen.has(m[1])) continue;
         // 尽量找标题
         const slice = html.slice(Math.max(0, m.index - 2000), m.index + 4000);
         let tm = slice.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
         if (!tm) tm = slice.match(/"title":\{"simpleText":"([^"]+)"/);
         const title = tm ? tm[1] : `视频 ${m[1]}`;
-        push(m[1], title, '刚刚', 's5-watchUrl');
+        push(m[1], title, '', 's5-watchUrl');
       }
     } catch {}
   }
 
-  return found.slice(0, 3);
+  return found.slice(0, MAX_CANDIDATES);
 }
 
 // ===================== 带多方向重试的 searchChannel =====================
@@ -378,6 +394,94 @@ async function captions(id) {
   // 若以上均失败，返回空字符串，上层只保留视频标题链接，不再输出“未提供公开中文字幕”提示块
   return '';
 }
+// ===================== 时效验证：最近 72 小时之内 =====================
+// 规则（见 freshness.mjs / README）：
+//   1) 搜索结果自带相对时间（“3小时前” / “2 days ago”）→ 直接裁决；
+//   2) 相对时间缺失或不可解析 → 读取 watch 页的绝对发布时间（publishDate / uploadDate / datePublished）复核；
+//   3) 仍无法验证发布时间 → 判定为过期并隐藏（绝不把不可考证的内容混进简报）。
+const publishedAtCache = new Map(); // id -> ISO 字符串 | null
+async function fetchPublishedAt(id) {
+  if (publishedAtCache.has(id)) return publishedAtCache.get(id);
+  let iso = null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const r = await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (r.ok) {
+      const html = await r.text();
+      const patterns = [
+        /"publishDate"\s*:\s*"([^"]+)"/,
+        /"uploadDate"\s*:\s*"([^"]+)"/,
+        /itemprop="datePublished"\s+content="([^"]+)"/,
+        /"datePublished"\s*:\s*"([^"]+)"/
+      ];
+      for (const rx of patterns) {
+        const m = html.match(rx);
+        if (!m) continue;
+        const d = new Date(m[1]);
+        if (!Number.isNaN(d.getTime())) { iso = d.toISOString(); break; }
+      }
+    }
+  } catch (e) {
+    console.log(`[fresh] ${id} 发布时间复核失败：${e.message}`);
+  }
+  publishedAtCache.set(id, iso);
+  return iso;
+}
+
+/**
+ * 逐条时效裁决：先看搜索结果里的相对时间，必要时用 watch 页绝对时间复核。
+ * @returns {Promise<{ok:boolean, publishedAt:string|null, ageMs:number|null, label:string, source:string, reason:string}>}
+ */
+async function verifyFreshness(video, now = Date.now()) {
+  const verdict = evaluateFreshness(video, now);
+  if (verdict.ok !== null) return verdict;
+  const iso = await fetchPublishedAt(video.id);
+  return evaluateFreshness({ published: video.published, publishedAt: iso }, now);
+}
+
+// ===================== 演示数据（离线预览用） =====================
+// 用途：本地/沙箱无外网（无法访问 YouTube）时，仍可在网页中查看「72 小时时效验证」与
+//       「AI 多空概率」的完整排版效果 —— 数据为示例，不参与真实扫描与推送统计口径。
+function buildDemoItems() {
+  const now = Date.now();
+  const mk = (o) => {
+    const ageMs = o.hoursAgo * 3600 * 1000;
+    const publishedAt = new Date(now - ageMs).toISOString();
+    return {
+      ...o,
+      url: 'https://www.youtube.com/watch?v=' + o.id,
+      publishedAt,
+      publishedLabel: o.published,
+      publishedMacau: formatMacau(publishedAt),
+      publishedAgeMs: ageMs,
+      publishedSource: 'relative',
+      freshWindow: FRESH_WINDOW_LABEL,
+      channel: o.channel
+    };
+  };
+  const candidates = [
+    mk({ id: 'demo0000001', hoursAgo: 3, channel: '信報財經新聞', published: '3 小时前', title: '港股午後跌幅收窄 恒指重上18000點 內房板塊反彈',
+      transcript: '00:00 開場\n大家好，今日大市焦點係恒指重返萬八關。\n03:12 內房股集體反彈，碧桂園升幅領先。',
+      status: '字幕已读取', bullBear: { bull: 64, bear: 36, note: '偏多：反弹 / 內房 / 恒指', source: 'ai' } }),
+    mk({ id: 'demo0000002', hoursAgo: 11, channel: '美投说美股', published: '11 小时前', title: '美聯儲議息紀錄顯示官員分歧擴大 市場押注年內路徑',
+      transcript: '', status: 'AI 多空概率', bullBear: { bull: 47, bear: 53, note: '中性：利率路径分歧', source: 'ai' } }),
+    mk({ id: 'demo0000003', hoursAgo: 40, channel: 'CNBC', published: '2 天前', title: 'Stocks rally as inflation data cools 美股通胀数据降温带动反弹',
+      transcript: '', status: 'AI 多空概率', bullBear: { bull: 68, bear: 32, note: '偏多：通胀降温 / 反弹', source: 'rule' } }),
+    mk({ id: 'demo0000004', hoursAgo: 100, channel: 'Bloomberg', published: '4 天前', title: '旧闻：四天前的市场综述（应被隐藏）',
+      transcript: '旧内容', status: '字幕已读取', bullBear: { bull: 50, bear: 50, note: '中性', source: 'rule' } }),
+    mk({ id: 'demo0000005', hoursAgo: 200, channel: 'Reuters', published: '1 周前', title: '旧闻：一周前的市场综述（应被隐藏）',
+      transcript: '旧内容', status: '字幕已读取', bullBear: { bull: 50, bear: 50, note: '中性', source: 'rule' } })
+  ];
+  const items = [], hidden = [];
+  for (const x of candidates) {
+    const fresh = evaluateFreshness(x, now);
+    if (fresh.ok) items.push(x);
+    else hidden.push({ channel: x.channel, title: x.title, url: x.url, reason: fresh.reason || `超出 ${FRESH_WINDOW_LABEL}窗口` });
+  }
+  return { items, hidden };
+}
+
 async function runFlows(token) {
   const repo = process.env.GITHUB_REPO || 'k-macao/08';
   const ref = process.env.GITHUB_REF || 'main';
@@ -398,28 +502,70 @@ async function scan(names, limit = 50) {
  // 单次简报上限 50 条，避免长推送淹没重点；调用方可传入更小的剩余额度。
  const itemLimit = Math.max(1, Math.min(Number(limit) || 50, 50));
  // 章鱼 AI·全景分析：扫描所选频道，达到简报上限即停止。
- // 频道逐个顺序抓取，避免对 YouTube 产生过高并发；每个频道最多 3 条视频。
+ // 频道逐个顺序抓取，避免对 YouTube 产生过高并发；每个内容源最多保留 3 条「最近 72 小时内」的内容。
+ //
+ // 时效验证（新增）：每抓到一个候选先做 72 小时裁决 ——
+ //   · 搜索结果相对时间可解析 → 直接裁决；
+ //   · 不可解析 → 读 watch 页绝对发布时间复核（每源最多复核 4 条，控制耗时）；
+ //   · 仍无法验证或已超时 → 判定为过期，直接隐藏，不进入简报（不读字幕、不占 50 条额度）。
+ //
  // 异常频道自动多方向重试：searchChannel 内部已尝试 5 个搜索方向 × 2 套 headers × 4 套解析策略；
  // captions 内部已尝试 zh 多变体 × list 发现 × watch 页抽轨道 × 翻译，共 4 组字幕方向。
+ const now = Date.now();
  const results = [];
+ const stale = [];
+ const PER_SOURCE_LIMIT = 3;   // 每个内容源最多保留 3 条
+ const PROBE_BUDGET = 4;       // 每个内容源最多为 4 条候选去 watch 页复核绝对发布时间
  for (const name of names) {
   if (results.length >= itemLimit) break;
   try {
    const videos = await searchChannel(name);
+   let kept = 0, probed = 0;
    for (const video of videos) {
-    if (results.length >= itemLimit) break;
+    if (results.length >= itemLimit || kept >= PER_SOURCE_LIMIT) break;
+    const needsProbe = evaluateFreshness(video, now).ok === null;
+    if (needsProbe && probed >= PROBE_BUDGET) {
+     stale.push({ channel: name, title: video.title, url: video.url, reason: `无法验证发布时间（已隐藏）` });
+     continue;
+    }
+    if (needsProbe) probed++;
+    const fresh = needsProbe ? await verifyFreshness(video, now) : evaluateFreshness(video, now);
+    if (!fresh.ok) {
+     console.log(`[fresh] 隐藏 ${name} · ${video.id}：${fresh.reason || '超出 72 小时窗口'}`);
+     stale.push({ channel: name, title: video.title, url: video.url, reason: fresh.reason || `超出 ${FRESH_WINDOW_LABEL}窗口` });
+     continue;
+    }
     const transcript = await captions(video.id);
     const english = isEnglishSource(name);
     const originalTitle = video.title;
     const title = english ? await translateTitleToChinese(originalTitle) : originalTitle;
     results.push({...video, title, originalTitle: title !== originalTitle ? originalTitle : '', channel:name, transcript,
-      status: transcript ? (english ? '中文翻译字幕' : '字幕已读取') : (english ? '未取得中文字幕' : '无公开中文字幕')});
+      // 时效字段：发布时间（ISO / 澳门时间文案 / 年龄）供网页与推送展示
+      publishedAt: fresh.publishedAt, publishedLabel: fresh.label, publishedMacau: formatMacau(fresh.publishedAt),
+      publishedAgeMs: fresh.ageMs, publishedSource: fresh.source, freshWindow: FRESH_WINDOW_LABEL,
+      // 状态徽章：无公开字幕时不再显示“无公开中文字幕”，改由「AI 多空概率」接管（见下方 bullBear）
+      status: transcript ? (english ? '中文翻译字幕' : '字幕已读取') : 'AI 多空概率'});
+    kept++;
    }
+   if (!kept) console.log(`[fresh] ${name}：72 小时内无可推送内容，该来源整体隐藏`);
   } catch (e) { if (results.length < itemLimit) results.push({channel:name, error:e.message}); }
   // 频道间礼貌间隔，降低限流概率
   if (names.length > 1) await new Promise(r => setTimeout(r, 180));
  }
- return results;
+ // ===================== AI 多空概率（逐条） =====================
+ // 每条内容都带「AI 多空概率」：优先由大模型依据标题 + 字幕推算；
+ // 无 Key / 调用失败 / 单条缺失时降级为本地规则推算，并在界面上明确标注来源。
+ try {
+  const probs = await analyzeLongShort(results.filter(x => !x.error), { onLog: m => console.log(m) });
+  let k = 0;
+  for (const item of results) {
+   if (item.error) continue;
+   const p = probs[k++] || null;
+   if (p && normalizeProbability(p)) item.bullBear = { bull: p.bull, bear: p.bear, note: p.note || '', source: p.source || 'rule' };
+  }
+ } catch (e) { console.log('[ai-ls] 多空概率异常（忽略，不影响扫描）：', e.message); }
+ if (stale.length) console.log(`[fresh] 本次共隐藏 ${stale.length} 条超出 ${FRESH_WINDOW_LABEL}窗口/无法验证发布时间的内容`);
+ return { items: results, hidden: stale };
 }
 
 /**
@@ -432,7 +578,9 @@ async function buildSummaryHtml(items) {
     if (!summary) return '';
     return renderSummaryHtml(summary, {
       generatedAt: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Macau' }),
-      itemCount: items.length
+      itemCount: items.length,
+      // 全景多空概率：由各条内容的 AI 多空概率汇总（见 longshort.mjs aggregateLongShort）
+      longShort: aggregateLongShort(items)
     });
   } catch (e) {
     console.log('[ai] buildSummaryHtml 异常：', e.message);
@@ -650,7 +798,30 @@ async function pushWechat({ token, title, content, template = 'html', channel = 
 const server = http.createServer(async (req,res) => {
  const u = new URL(req.url, `http://${req.headers.host}`);
  if (u.pathname === '/api/scan' && req.method === 'POST') {
-  try { const {channels=[], limit=50} = await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})}); json(res,200,{items:await scan(channels, limit), fetchedAt:new Date().toISOString()}); } catch(e){json(res,500,{error:e.message});} return;
+  try {
+   const {channels=[], limit=50} = await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});
+   const out = await scan(channels, limit);
+   const hidden = out.hidden || [];
+   json(res,200,{
+     items: out.items,
+     hiddenCount: hidden.length,
+     hidden: hidden.slice(0, 20), // 统计与排查用，最多回传 20 条
+     freshWindow: FRESH_WINDOW_LABEL,
+     fetchedAt: new Date().toISOString()
+   });
+  } catch(e){json(res,500,{error:e.message});} return;
+ }
+ if (u.pathname === '/api/demo' && (req.method === 'POST' || req.method === 'GET')) {
+  // 离线演示数据：与本页排版、时效验证、AI 多空概率完全同构，便于无外网时预览效果
+  const demo = buildDemoItems();
+  return json(res, 200, {
+    items: demo.items,
+    hiddenCount: demo.hidden.length,
+    hidden: demo.hidden,
+    freshWindow: FRESH_WINDOW_LABEL,
+    demo: true,
+    fetchedAt: new Date().toISOString()
+  });
  }
  if (u.pathname === '/api/run-flows' && req.method === 'POST') {
   try { const body=await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});

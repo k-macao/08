@@ -2,8 +2,11 @@
 // 单一职责：接收扫描结果数组 → 输出"主题聚类"风格的总结 JSON。
 // 提供方：DeepSeek（OpenAI 兼容协议）。也支持任意 OpenAI 兼容 base_url，通过环境变量切换。
 //
-// 入口：summarize(items, opts) → { main, hotTopics, risks, opportunities, perVideo } | null
-//   - 失败一律返回 null（调用方需自行降级到"无 AI 总结"的原始推送）
+// 入口：
+//   summarize(items, opts)        → { main, hotTopics, risks, opportunities, perVideo } | null
+//   analyzeLongShort(items, opts) → [{ bull, bear, note, source }]，逐条「AI 多空概率」
+//   renderSummaryHtml(summary)    → AI 总结块的 HTML 片段（含全景多空概率）
+//   - 失败一律降级（AI 多空概率降级为本地规则推算；总结降级为无总结推送），绝不伪造 AI 结果
 //   - 通过 opts.onLog(...) 输出进度日志（CI 用 console.log，前端可注入）
 //
 // 环境变量：
@@ -16,7 +19,11 @@
 //   1) 严格 JSON 输出，提示词反复强调"只回 JSON，不要任何解释"；
 //   2) 输出失败时尝试宽松正则抽取 {...}，仍失败则返回 null；
 //   3) 每条字幕截断 4000 字、整体 prompt 控制在约 60k 字符以内；
-//   4) perVideo 的 key 用 `${i}:${channel}` 形式，调用方可对齐回原数组。
+//   4) perVideo 的 key 用 `${i}:${channel}` 形式，调用方可对齐回原数组；
+//   5) 多空概率禁止输出个股买卖建议（目标价 / 买卖评级等一律净化）。
+
+import { ruleLongShort, normalizeProbability, sanitizeNote, bullBearBar } from './longshort.mjs';
+
 
 const DEFAULT_BASE = 'https://api.deepseek.com/v1';
 const DEFAULT_MODEL = 'deepseek-chat';
@@ -204,14 +211,110 @@ export async function summarize(items, opts = {}) {
 
 
 /**
+ * 逐条推算「AI 多空概率」（看多 bull% / 看空 bear%，相加 = 100）。
+ * - 有 AI Key：一次调用覆盖本批全部条目，严格 JSON；
+ * - 无 Key / 调用失败 / 单条缺失：该条降级为本地规则推算（source:'rule'，界面上明确标注）。
+ * @param {Array} items 扫描结果（形状同 /api/scan 的 items）
+ * @param {Object} opts { onLog?: (s)=>void, signal?: AbortSignal, maxTranscriptChars?: number }
+ * @returns {Promise<Array<{bull:number,bear:number,note:string,source:'ai'|'rule'}>>} 与 items 等长
+ */
+export async function analyzeLongShort(items, opts = {}) {
+  const onLog = opts.onLog || (() => {});
+  const list = Array.isArray(items) ? items : [];
+  const results = list.map(x => ruleLongShort(x || {}));
+  if (!list.length) return results;
+
+  const cfg = getConfig();
+  if (!cfg.apiKey) {
+    onLog('[ai-ls] 未配置 DEEPSEEK_API_KEY / OPENAI_API_KEY，多空概率降级为本地规则推算');
+    return results;
+  }
+
+  const maxChars = Number(opts.maxTranscriptChars) || 800;
+  const lines = [];
+  lines.push('你是一名中文财经情绪量化分析师。阅读下面每条内容（频道 + 标题 + 字幕摘录），');
+  lines.push('为每条给出「看多概率 bull」与「看空概率 bear」，二者相加必须等于 100，整数，范围 5-95。');
+  lines.push('要求：');
+  lines.push('1. 只回严格 JSON，不要任何解释、不要 Markdown 代码块。');
+  lines.push('2. 只能依据给定内容判断，不得编造事实、数字或人名。');
+  lines.push('3. 禁止输出目标价、买入/卖出评级、个股推荐等任何投资建议；note 只描述情绪方向与驱动因素（≤ 24 字）。');
+  lines.push('4. 若内容无明显方向（如纯资讯、无字幕且标题中性），bull/bear 给接近 50/50 的中性值，note 写“中性”。');
+  lines.push('5. 返回格式：{"longShort":{"<key>":{"bull":58,"bear":42,"note":"..."}}}，key 使用每条开头的编号。');
+  lines.push('');
+  lines.push('【内容清单】');
+  list.forEach((x, i) => {
+    if (x && x.error) { lines.push(`[${i}:${x.channel || '?'}] (扫描异常，跳过)`); return; }
+    lines.push(`[${i}:${String(x.channel || '?')}] ${truncate(x.title || '(无标题)', 120)}`);
+    const t = truncate(x.transcript || '', maxChars);
+    lines.push(`  · 字幕：${t || '(无字幕，仅依据标题判断)'}`);
+  });
+  const prompt = lines.join('\n');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), cfg.timeoutMs);
+  const signal = opts.signal || controller.signal;
+  try {
+    const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.apiKey}` },
+      body: JSON.stringify({
+        model: cfg.model,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: '你是严谨的中文财经情绪量化分析师。严格只回 JSON，不要任何解释。' },
+          { role: 'user', content: prompt }
+        ]
+      }),
+      signal
+    });
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => '');
+      onLog(`[ai-ls] HTTP ${resp.status}：${t.slice(0, 200)}，多空概率降级为本地规则推算`);
+      return results;
+    }
+    const data = await resp.json();
+    const text = data?.choices?.[0]?.message?.content || '';
+    const parsed = extractJson(text);
+    const blocks = parsed && typeof parsed === 'object'
+      ? [parsed.longShort, parsed.多空概率, parsed.bullBear, parsed.data].find(b => b && typeof b === 'object' && !Array.isArray(b))
+      : null;
+    if (!blocks) {
+      onLog(`[ai-ls] 无法解析多空概率 JSON，降级为本地规则推算：${text.slice(0, 160)}`);
+      return results;
+    }
+    let hit = 0;
+    list.forEach((x, i) => {
+      const key = `${i}:${String((x && x.channel) || '?')}`;
+      const raw = blocks[key] ?? blocks[String(i)] ?? Object.entries(blocks).find(([k]) => k.startsWith(`${i}:`))?.[1];
+      const prob = normalizeProbability(raw);
+      if (!prob) return;
+      const note = sanitizeNote((raw && typeof raw === 'object' && raw.note) || '');
+      results[i] = { bull: prob.bull, bear: prob.bear, note, source: 'ai' };
+      hit++;
+    });
+    onLog(`[ai-ls] 多空概率：AI 命中 ${hit}/${list.length} 条，其余按本地规则推算`);
+  } catch (e) {
+    onLog(`[ai-ls] 网络/解析异常：${e.message || e}，多空概率降级为本地规则推算`);
+  } finally {
+    clearTimeout(timer);
+  }
+  return results;
+}
+
+/**
  * 把总结对象渲染成 HTML 片段（DOS 监视器 · 复古终端视觉风格）
  * @param {Object} summary  summarize() 的返回值
- * @param {Object} meta     { generatedAt: string, itemCount: number }
+ * @param {Object} meta     { generatedAt: string, itemCount: number, longShort?: {bull,bear,count,source} }
  */
 export function renderSummaryHtml(summary, meta = {}) {
   if (!summary) return '';
   const esc = s => String(s || '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c]));
   const itemCount = meta.itemCount || 0;
+  // 全景多空概率：由各条目的 AI 多空概率汇总而来（见 longshort.mjs aggregateLongShort）
+  const ls = meta.longShort && normalizeProbability(meta.longShort) ? meta.longShort : null;
+  const lsSource = ls ? (meta.longShort.source === 'ai' ? 'DeepSeek 多空推理' : meta.longShort.source === 'mixed' ? 'DeepSeek + 本地规则' : '本地规则推算') : '';
+  const lsBar = ls ? bullBearBar(ls, 16) : '';
 
   const li = (arr, badgeText = '::') => (arr && arr.length)
     ? `<ul style="margin:6px 0 0 0;padding:0;list-style:none;font-family:'Courier New',Consolas,'SimSun',monospace;">${arr.map(x => `
@@ -239,6 +342,18 @@ export function renderSummaryHtml(summary, meta = {}) {
           `<p style="margin:0;color:#eafff0;font-weight:700;line-height:1.85;white-space:pre-wrap;word-break:break-word;font-size:12px;">${esc(summary.main)}</p>`,
           '<div style="margin-top:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#2c6742;">C:\\&gt; MAIN.TXT █</div>',
         '</div>',
+        // ── 全景多空概率（AI 多空概率汇总） ──
+        ls ? (
+          '<div style="margin-top:10px;background:#031203;border:1px solid #0d9b4c;padding:8px 10px;">' +
+            '<div style="display:flex;align-items:center;gap:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;letter-spacing:0.5px;margin-bottom:6px;">' +
+              '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">L/S</span>' +
+              '<span>&gt; AI 多空概率 · LONG_SHORT.PROB</span>' +
+              '<span style="margin-left:auto;background:#041404;color:#8fdca4;padding:1px 5px;font-size:9px;font-weight:400;">多 ' + ls.bull + '% / 空 ' + ls.bear + '%</span>' +
+            '</div>' +
+            '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;">' + esc(lsBar) + '</div>' +
+            '<div style="margin-top:4px;font-family:\'Courier New\',Consolas,monospace;font-size:9px;color:#3f8f5b;">基于 ' + Number(meta.longShort.count || itemCount) + ' 条内容 · ' + esc(lsSource) + ' · 仅供研究参考，不构成投资建议</div>' +
+          '</div>'
+        ) : '',
         // ── 热点 ──
         '<div style="margin-top:10px;">',
           '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',

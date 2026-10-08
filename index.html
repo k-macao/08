@@ -44,7 +44,7 @@
           </div>
           <p class="panel-desc">
             <span class="t-body">覆盖中文财经频道与 70 个英文新闻／社交媒体内容源（含新增的 Reddit 社区与 moomoo 市场资讯来源）。</span>
-            <span class="t-sub">英文标题与字幕优先翻译为中文；单次简报最多保留 <b class="t-key">50 条</b>内容。</span>
+            <span class="t-sub">英文标题与字幕优先翻译为中文；单次简报最多保留 <b class="t-key">50 条</b>最近 72 小时内的内容。</span>
           </p>
           <div id="channels" class="channels"></div>
         </section>
@@ -56,8 +56,8 @@
             <small id="state">待命 / STANDBY</small>
           </div>
           <p class="panel-desc">
-            <span class="t-body">读取公开搜索结果与中文字幕；<b class="t-key">无字幕视频保留链接并明确标注</b>。</span>
-            <span class="t-sub">支持自动多方向容错重试。</span>
+            <span class="t-body">读取公开搜索结果与中文字幕；<b class="t-key">仅保留最近 72 小时内发布的内容</b>，超时或无法验证发布时间的内容自动隐藏。</span>
+            <span class="t-sub">每条内容附 <b class="t-key">AI 多空概率</b>（看多 / 看空，无字幕内容同样给出并标注推算来源）；支持自动多方向容错重试。</span>
           </p>
           <button class="btn-primary" id="scan">
             <span>▶</span> [ENTER] 开始全景扫描 <span class="btn-sub">(中英内容源 · 最多 50 条)</span>
@@ -69,6 +69,9 @@
             </div>
             <div class="meter-track"><b id="progress"></b></div>
           </div>
+          <button class="btn-secondary" id="demo">
+            <span>🧪</span> [F2] 载入示例数据（离线预览 72 小时验证 + AI 多空概率）
+          </button>
           <button class="btn-secondary" id="runflows">
             <span>⚡</span> [F5] 触发 GitHub Actions 流水线
           </button>
@@ -122,7 +125,7 @@
           <div id="empty" class="empty">
             <span class="empty-kicker">WAITING FOR SCAN</span>
             <div class="empty-line">选择频道后，点击「开始全景扫描」。</div>
-            <small class="empty-note">扫描结果将以「DOS 监视器 · 复古终端」竖版长页排版呈现。</small>
+            <small class="empty-note">扫描结果将以「DOS 监视器 · 复古终端」竖版长页排版呈现，每条内容附 AI 多空概率；仅保留最近 72 小时内发布的内容。</small>
           </div>
 
           <div id="results"></div>

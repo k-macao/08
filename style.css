@@ -711,15 +711,67 @@ main {
   font-size: 10px;
   font-weight: 400;
 }
-.item .no-sub {
+/* 时效徽章（72 小时内已验证） */
+.item .meta .fresh-badge {
+  background: var(--black);
+  color: var(--neon);
+  font-weight: 700;
+}
+/* ===== AI 多空概率（取代原「无公开中文字幕」提示） =====
+   多 = L2 荧光绿；空 = 琥珀警示色；条形图与文字均等宽终端字体 */
+.item .longshort {
   margin: 8px 12px 12px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   background: var(--bg-subtle);
-  border: 1px dashed var(--border-light);
-  color: var(--ink-muted);
+  border: 1px solid var(--border-light);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+}
+.item .longshort .ls-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+.item .longshort .ls-badge {
+  background: var(--neon);
+  color: var(--black);
+  padding: 1px 5px;
+  font-weight: 700;
+}
+.item .longshort .ls-tag {
+  background: var(--black);
+  color: var(--ink-soft);
+  padding: 1px 5px;
   font-weight: 400;
+}
+.item .longshort .ls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+.item .longshort .ls-row .ls-k { width: 12px; font-weight: 700; }
+.item .longshort .ls-row.bull .ls-k,
+.item .longshort .ls-row.bull .ls-v { color: var(--neon); }
+.item .longshort .ls-row.bear .ls-k,
+.item .longshort .ls-row.bear .ls-v { color: var(--amber); }
+.item .longshort .ls-row .ls-bar {
+  color: var(--ink-soft);
+  letter-spacing: 1px;
+  word-break: break-all;
+}
+.item .longshort .ls-row.bull .ls-bar { color: var(--border); }
+.item .longshort .ls-row.bear .ls-bar { color: #6b5210; }
+.item .longshort .ls-note {
+  margin-top: 5px;
+  color: var(--ink-dim);
+  font-size: 9px;
+  line-height: 1.7;
 }
 /* 异常条目说明：琥珀色系，正文比标题淡 */
 .item .err-detail { color: var(--amber); }

@@ -17,14 +17,62 @@ function balancedChannels(names) {
   return out;
 }
 
+// ===================== 时效验证：只展示最近 72 小时内的内容 =====================
+// 服务端已按 72 小时过滤；这里再做一次兜底，无法验证发布时间的内容一律隐藏。
+const FRESH_WINDOW_MS = 72 * 60 * 60 * 1000;
+const FRESH_WINDOW_LABEL = '72 小时';
+function freshOnly(items) {
+  const now = Date.now();
+  return (items || []).filter(x => {
+    if (x.error) return true;
+    const t = x.publishedAt ? new Date(x.publishedAt).getTime() : NaN;
+    if (!Number.isFinite(t)) {
+      // 没有时间戳：用相对时间文案兜底（“3小时前” / “2 hours ago”）
+      const rel = relAgeMs(x.publishedLabel || x.published);
+      return rel != null && rel <= FRESH_WINDOW_MS;
+    }
+    return now - t <= FRESH_WINDOW_MS;
+  });
+}
+function relAgeMs(text) {
+  const m = String(text || '').match(/(\d+(?:[.,]\d+)?)\s*(秒|分钟|分鐘|小时|小時|天|日|周|週|个月|個月|年|seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|months?|years?)\s*(?:前|ago|before)/i);
+  if (!m) return /(刚刚|剛剛|just now|now)/i.test(String(text || '')) ? 0 : null;
+  const n = Number(String(m[1]).replace(',', '.'));
+  const u = m[2].toLowerCase();
+  const mult = /秒|sec/.test(u) ? 1000 : /分|min/.test(u) ? 60000 : /小时|小時|hour|hr/.test(u) ? 3600000
+    : /天|日|day/.test(u) ? 86400000 : /周|週|week/.test(u) ? 604800000 : /个月|個月|month/.test(u) ? 2592000000 : 31536000000;
+  return Number.isFinite(n) ? n * mult : null;
+}
+
+// ===================== AI 多空概率（看多 / 看空） =====================
+// 取代原「无公开中文字幕」提示：无字幕内容同样给出 AI 多空概率，并明确标注推算来源。
+function lsBar(v, width = 10) {
+  const k = Math.max(0, Math.min(width, Math.round(v / 100 * width)));
+  return '█'.repeat(k) + '░'.repeat(width - k);
+}
+function lsHtml(x) {
+  const bb = x && x.bullBear;
+  if (!bb || typeof bb.bull !== 'number') return '';
+  const src = bb.source === 'ai' ? '模型：DeepSeek 多空推理' : '模型：本地规则（未配置 AI Key）';
+  return `
+        <div class="longshort">
+          <div class="ls-head"><span class="ls-badge">AI 多空概率</span><span class="ls-tag">多 ${bb.bull}% / 空 ${bb.bear}%</span></div>
+          <div class="ls-row bull"><span class="ls-k">多</span><span class="ls-bar">${lsBar(bb.bull)}</span><span class="ls-v">${bb.bull}%</span></div>
+          <div class="ls-row bear"><span class="ls-k">空</span><span class="ls-bar">${lsBar(bb.bear)}</span><span class="ls-v">${bb.bear}%</span></div>
+          <div class="ls-note">${esc(bb.note || '')} · ${src} · 仅供研究参考，不构成投资建议</div>
+          ${x.transcript ? '' : '<div class="ls-note">未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算</div>'}
+        </div>`;
+}
+
 function updatePushMeta() {
+  const packetItems = freshOnly(last);
   const pc = document.querySelector('#packetCount');
-  if (pc) pc.textContent = last.length;
+  if (pc) pc.textContent = packetItems.length;
   const ps = document.querySelector('#pushStatus');
   if (ps) {
-    if (!last.length) ps.textContent = 'STANDBY';
-    else if (document.querySelector('#push')?.disabled) ps.textContent = 'ARMED · ' + last.length + ' PACKETS';
-    else ps.textContent = 'READY · ' + last.length + ' PACKETS';
+    if (!packetItems.length) ps.textContent = 'STANDBY';
+    else if (document.querySelector('#push')?.disabled) ps.textContent = 'ARMED · ' + packetItems.length + ' PACKETS';
+    else ps.textContent = 'READY · ' + packetItems.length + ' PACKETS';
   }
 }
 
@@ -64,8 +112,23 @@ function fmtTranscript(text = '') {
 function render(items) {
   const out = document.querySelector('#results');
   const empty = document.querySelector('#empty');
-  if (empty) empty.style.display = 'none';
-  out.innerHTML = items.map((x, i) => x.error ? `
+  // 时效兜底：只渲染最近 72 小时之内的内容（服务端已过滤，此处二次校验）
+  const visible = freshOnly(items);
+  if (empty) {
+    if (visible.length) {
+      empty.style.display = 'none';
+    } else {
+      empty.style.display = '';
+      empty.innerHTML = items.length
+        ? `<span class="empty-kicker">NO CONTENT WITHIN ${FRESH_WINDOW_LABEL.toUpperCase()}</span>
+           <div class="empty-line">最近 ${FRESH_WINDOW_LABEL}内没有新的内容，超时内容已全部隐藏。</div>
+           <small class="empty-note">时效验证规则：仅保留发布时间在最近 ${FRESH_WINDOW_LABEL}之内的内容；无法验证发布时间的内容同样隐藏。</small>`
+        : `<span class="empty-kicker">WAITING FOR SCAN</span>
+           <div class="empty-line">选择频道后，点击「开始全景扫描」。</div>
+           <small class="empty-note">扫描结果将以「DOS 监视器 · 复古终端」竖版长页排版呈现，并附每条内容的 AI 多空概率。</small>`;
+    }
+  }
+  out.innerHTML = visible.map((x, i) => x.error ? `
     <article class="item error">
       <div class="meta">
         <span class="ch-name"><span class="hl-badge">[${i + 1}]</span> ${esc(x.channel)}</span>
@@ -80,11 +143,13 @@ function render(items) {
         <div class="ch-name">
           <span class="hl-badge">#${i + 1}</span>
           ${esc(x.channel)}
+          <span class="hl-badge fresh-badge">${FRESH_WINDOW_LABEL.toUpperCase()} ✓</span>
         </div>
-        <div>${esc(x.published)} · ${esc(x.status || '')}${x.direction ? ` · ${esc(x.direction)}` : ''}</div>
+        <div>${esc(x.publishedLabel || x.published || '')}${x.publishedMacau ? ` · ${esc(x.publishedMacau)}` : ''} · ${esc(x.status || '')}${x.direction ? ` · ${esc(x.direction)}` : ''}</div>
       </div>
       <h3><a href="${esc(x.url)}" target="_blank" rel="noreferrer">${esc(x.title)}</a></h3>
-      ${x.transcript ? `<div class="transcript">${fmtTranscript(x.transcript)}</div>` : '<div class="no-sub">该视频未能读取公开中文字幕，请点击标题观看原视频。</div>'}
+      ${lsHtml(x)}
+      ${x.transcript ? `<div class="transcript">${fmtTranscript(x.transcript)}</div>` : ''}
     </article>`
   ).join('');
   updatePushMeta();
@@ -116,6 +181,7 @@ document.querySelector('#scan').onclick = async () => {
   setPushStatus('SCANNING');
   try {
     const all = [];
+    let hiddenTotal = 0;
     const BATCH = 4;
     for (let i = 0; i < channels.length; i += BATCH) {
       if (all.length >= MAX_REPORT_ITEMS) break;
@@ -125,6 +191,7 @@ document.querySelector('#scan').onclick = async () => {
       if (!r.ok) throw Error(data.error);
       all.push(...data.items);
       all.splice(MAX_REPORT_ITEMS);
+      hiddenTotal += Number(data.hiddenCount || 0);
       const done = Math.min(i + BATCH, channels.length);
       const pct = Math.round(done / channels.length * 88);
       p.style.width = pct + '%';
@@ -173,17 +240,20 @@ document.querySelector('#scan').onclick = async () => {
         state.textContent = `扫描完成（${stillFailed} 个频道异常）`;
         setPushStatus('COMPLETE · ' + stillFailed + ' ERR');
       } else {
-        state.textContent = '扫描完成（重试已全部恢复）';
+        state.textContent = '扫描完成（重试已全部恢复）' + (hiddenTotal ? ` · 已隐藏 ${hiddenTotal} 条超${FRESH_WINDOW_LABEL}内容` : '');
         setPushStatus('READY TO PUSH');
       }
     } else {
-      state.textContent = '扫描完成 · ALL SUCCESS';
+      state.textContent = '扫描完成 · ALL SUCCESS' + (hiddenTotal ? `（已隐藏 ${hiddenTotal} 条超${FRESH_WINDOW_LABEL}内容）` : '');
       setPushStatus('READY TO PUSH');
     }
     p.style.width = '100%';
     if (pt) pt.textContent = '100%';
     const stamp = document.querySelector('#stamp');
-    if (stamp) stamp.textContent = 'COMPLETED · ' + last.length + ' ITEMS' + (last.length >= MAX_REPORT_ITEMS ? ' · 50 条上限' : '');
+    const freshCount = freshOnly(last).length;
+    if (stamp) stamp.textContent = 'COMPLETED · ' + freshCount + ' ITEMS'
+      + (hiddenTotal ? ' · 已隐藏 ' + hiddenTotal + ' 条超出 ' + FRESH_WINDOW_LABEL : '')
+      + (last.length >= MAX_REPORT_ITEMS ? ' · 50 条上限' : '');
     const pushBtn = document.querySelector('#push');
     if (pushBtn) pushBtn.disabled = false;
     updatePushMeta();
@@ -194,6 +264,34 @@ document.querySelector('#scan').onclick = async () => {
   } finally {
     b.disabled = false;
     setTimeout(() => { p.style.width = '0%'; if (pt) pt.textContent = '0%'; }, 1500);
+  }
+};
+
+// 离线示例数据：无需外网即可查看「72 小时时效验证 + AI 多空概率」的完整排版
+document.querySelector('#demo').onclick = async () => {
+  const b = document.querySelector('#demo'), p = document.querySelector('#progress'), pt = document.querySelector('#progress-text');
+  b.disabled = true;
+  try {
+    const r = await fetch('/api/demo');
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error || ('HTTP ' + r.status));
+    last = d.items || [];
+    render(last);
+    const stamp = document.querySelector('#stamp');
+    const freshCount = freshOnly(last).length;
+    if (stamp) stamp.textContent = 'DEMO · ' + freshCount + ' ITEMS' + (d.hiddenCount ? ' · 已隐藏 ' + d.hiddenCount + ' 条超出 ' + FRESH_WINDOW_LABEL : '') + ' · 示例数据';
+    setPushStatus('DEMO · ' + freshCount + ' PACKETS');
+    const stateEl = document.querySelector('#state');
+    if (stateEl) stateEl.textContent = `示例数据已载入（${freshCount} 条 · 隐藏 ${d.hiddenCount || 0} 条超出 ${FRESH_WINDOW_LABEL}）`;
+    if (p) { p.style.width = '100%'; if (pt) pt.textContent = '100%'; }
+    const pushBtn = document.querySelector('#push');
+    if (pushBtn) pushBtn.disabled = false;
+    updatePushMeta();
+  } catch (e) {
+    alert('载入示例数据失败：' + e.message);
+  } finally {
+    b.disabled = false;
+    setTimeout(() => { if (p) p.style.width = '0%'; if (pt) pt.textContent = '0%'; }, 1200);
   }
 };
 
@@ -218,6 +316,10 @@ document.querySelector('#push').onclick = async () => {
   const token = document.querySelector('#token').value.trim();
   if (!token) return alert('请输入 PushPlus Token');
   if (!last.length) return alert('请先执行扫描获取情报数据');
+  // 时效验证：只推送最近 72 小时内发布的内容；无内容则不推送
+  const freshItems = freshOnly(last);
+  if (!freshItems.length) return alert(`最近 ${FRESH_WINDOW_LABEL}内没有新的内容（超时内容已隐藏），本次不推送。`);
+  if (!freshItems.some(x => !x.error)) return alert('本次扫描未取得任何有效内容（仅剩扫描异常），本次不推送。');
 
   // === PushPlus DOS 监视器 · 复古终端 微信竖版长页面推送模板 ===
   // 文字明暗层级（微信会剥离 class，因此全部写 inline）：
@@ -237,8 +339,28 @@ document.querySelector('#push').onclick = async () => {
   };
   // 字幕行首时间戳（00:12）压到最暗一层，只当锚点用
   const fmtPush = t => esc(t).replace(/(^|\n)(\d{1,2}:\d{2}(?::\d{2})?)/g, '$1<span style="color:#2c6742;font-size:10px;">$2</span>');
+  // AI 多空概率（微信会剥离 class，全部 inline）：条形图 + 来源标注
+  const lsBarPush = (v, w = 10) => {
+    const k = Math.max(0, Math.min(w, Math.round(v / 100 * w)));
+    return '█'.repeat(k) + '░'.repeat(w - k);
+  };
+  const lsBlockPush = x => {
+    const bb = x.bullBear;
+    if (!bb || typeof bb.bull !== 'number') return '';
+    const src = bb.source === 'ai' ? 'DeepSeek 多空推理' : '本地规则推算（未配置 AI Key）';
+    return `
+        <div style="margin-top:8px;padding:8px 10px;background:#031203;border:1px solid #0d9b4c;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:9px;flex-wrap:wrap;">
+            <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
+            <span style="background:#041404;color:#8fdca4;padding:1px 5px;font-weight:400;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+          </div>
+          <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#8fdca4;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBarPush(bb.bull)} ${bb.bull}%
+空 ${lsBarPush(bb.bear)} ${bb.bear}%</div>
+          <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#3f8f5b;line-height:1.7;">${esc(bb.note || '')} · 模型：${src} · 仅供研究参考，不构成投资建议${x.transcript ? '' : '<br>未读取到公开中文字幕 · 概率由 AI 依据标题与频道推算'}</div>
+        </div>`;
+  };
 
-  const items = last.map((x, i) => x.error ?
+  const items = freshItems.map((x, i) => x.error ?
     `<section style="margin:10px 0;border:1px solid #b98600;background:#1a1203;box-shadow:0 0 6px rgba(255,176,0,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
       <div style="display:flex;align-items:center;gap:6px;background:#ffb000;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
         <span style="background:#041404;color:#ffb000;padding:1px 5px;">■</span>
@@ -257,10 +379,11 @@ document.querySelector('#push').onclick = async () => {
         ${x.status ? `<span style="background:#041404;padding:1px 5px;flex-shrink:0;${TIER.body}">${esc(x.status)}</span>` : ''}
       </div>
       <div style="padding:10px 12px;">
-        <div style="${TIER.dim}font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.published)}</div>
+        <div style="${TIER.dim}font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;">C:\\BRIEF\\LOGS&gt; ${esc(x.publishedLabel || x.published || '')}${x.publishedMacau ? ` · ${esc(x.publishedMacau)}` : ''} · 时效验证 ✓ ${esc(FRESH_WINDOW_LABEL)}内</div>
         <h3 style="margin:6px 0 8px;">
           <a href="${esc(x.url)}" style="${TIER.key}font-size:13.5px;line-height:1.55;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
         </h3>
+        ${lsBlockPush(x)}
         ${x.transcript ? `
           <div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;${TIER.body}font-size:11.5px;line-height:1.75;">${fmtPush(x.transcript)}</div>
         ` : ''}
@@ -277,6 +400,12 @@ document.querySelector('#push').onclick = async () => {
         <span style="color:#00ff66;font-weight:700;">C:\\OCTOPUS\\AI&gt; PANORAMA.EXE</span>
       </div>
       <span style="background:#00ff66;color:#041404;padding:1px 6px;font-weight:700;font-size:9px;">DOS MONITOR · 复古终端</span>
+    </div>
+
+    <!-- 时效验证说明：仅保留最近 72 小时内发布的内容 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px dashed #0d9b4c;background:#031203;font-family:'Courier New',Consolas,monospace;font-size:9.5px;margin-bottom:12px;letter-spacing:0.5px;flex-wrap:wrap;gap:4px;">
+      <span style="color:#00ff66;font-weight:700;">FRESHNESS CHECK ▸ 只保留最近 ${FRESH_WINDOW_LABEL}内发布的内容</span>
+      <span style="color:#3f8f5b;font-weight:400;">超时 / 无法验证发布时间的内容已隐藏 · 本次共 ${freshItems.length} 条</span>
     </div>
 
     <!-- 视频情报流 -->
@@ -312,7 +441,7 @@ document.querySelector('#push').onclick = async () => {
     setPushStatus('SUMMARIZING');
     let summaryHtml = '';
     try {
-      const sr = await fetch('/api/summarize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: last }) });
+      const sr = await fetch('/api/summarize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: freshItems }) });
       const sd = await sr.json();
       if (sr.ok && sd && sd.ok && sd.summaryHtml) summaryHtml = sd.summaryHtml;
     } catch (_) { /* 降级：无总结 */ }
