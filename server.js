@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { readCaptions } from './captions.mjs';
 import { readFile } from 'node:fs/promises';
 import { URL } from 'node:url';
 import { summarize, renderSummaryHtml, analyzeLongShort } from './ai.mjs';
@@ -247,157 +248,6 @@ async function searchChannel(name) {
   throw new Error(`未解析到公开视频（已自动尝试 ${tried.length} 个搜索方向：${tried.join(' / ')}；末错：${lastError ? lastError.message : '未知'}）`);
 }
 
-// ===================== 字幕多方向读取 =====================
-async function fetchTimedTextRaw(id, lang, opts = {}) {
-  const params = new URLSearchParams({ v: id, lang });
-  if (opts.tlang) params.set('tlang', opts.tlang);
-  if (opts.fmt) params.set('fmt', opts.fmt);
-  // kind=asr for auto-generated
-  const url = `https://www.youtube.com/api/timedtext?${params.toString()}`;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const r = await fetch(url, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
-    if (!r.ok) return '';
-    const xml = await r.text();
-    if (!xml || xml.length < 10) return '';
-    // 常见两种格式：<text>（默认）或 <p>（srv3）
-    let parts = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
-    if (!parts.length) parts = [...xml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
-    // srv1 json 格式兼容
-    if (!parts.length && xml.includes('"events"')) {
-      try {
-        const j = JSON.parse(xml);
-        if (j.events) parts = j.events.map(e => (e.segs || []).map(s => s.utf8 || '').join('')).filter(Boolean);
-      } catch {}
-    }
-    const joined = parts.join(' ').trim();
-    if (!joined) return '';
-    return clean(decode(joined)).slice(0, 7000);
-  } catch {
-    return '';
-  }
-}
-
-async function captions(id) {
-  // 方向组1：直连 zh 各变体（覆盖大多数繁中频道）
-  const langDirections = ['zh-Hant', 'zh-Hans', 'zh', 'zh-CN', 'zh-TW', 'zh-HK'];
-  for (const lang of langDirections) {
-    const t = await fetchTimedTextRaw(id, lang);
-    if (t && t.length > 10) {
-      console.log(`[caption] ${id} 命中直连 ${lang} (${t.length}字)`);
-      return t;
-    }
-    // 尝试带 fmt 的备用（srv3）
-    const t2 = await fetchTimedTextRaw(id, lang, { fmt: 'srv3' });
-    if (t2 && t2.length > 10 && t2 !== t) {
-      console.log(`[caption] ${id} 命中直连 ${lang} srv3 (${t2.length}字)`);
-      return t2;
-    }
-  }
-
-  // 方向组2：通过 list 接口发现可用轨道，再逐个尝试（自动发现）
-  try {
-    const listUrl = `https://www.youtube.com/api/timedtext?type=list&v=${id}`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const r = await fetch(listUrl, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
-    if (r.ok) {
-      const xml = await r.text();
-      const tracks = [...xml.matchAll(/lang_code="([^"]+)"/g)].map(m => m[1]);
-      if (tracks.length) console.log(`[caption] ${id} list 发现轨道: ${tracks.join(',')}`);
-      // 优先 zh，再 en，再其他
-      const score = l => l.startsWith('zh') ? 0 : l === 'en' || l.startsWith('en') ? 1 : 2;
-      const prioritized = [...new Set(tracks)].sort((a, b) => score(a) - score(b));
-      for (const lang of prioritized) {
-        if (langDirections.includes(lang)) continue; // 已试过
-        // 英文轨道必须先尝试翻译，确保英文平台的正文优先以中文输出。
-        if (lang.startsWith('en')) {
-          const tr = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hans' });
-          if (tr && tr.length > 10) {
-            console.log(`[caption] ${id} 命中翻译轨道 ${lang}->zh-Hans (${tr.length}字)`);
-            return tr;
-          }
-          const tr2 = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hant' });
-          if (tr2 && tr2.length > 10) return tr2;
-        }
-        const t = await fetchTimedTextRaw(id, lang);
-        if (t && t.length > 10) {
-          console.log(`[caption] ${id} 命中 list 轨道 ${lang} (${t.length}字)`);
-          return t;
-        }
-      }
-      // 已有轨道但未命中正文，尝试对第一条做翻译兜底
-      if (prioritized.length) {
-        for (const lang of prioritized.slice(0, 2)) {
-          const tr = await fetchTimedTextRaw(id, lang, { tlang: 'zh-Hant' });
-          if (tr && tr.length > 10) {
-            console.log(`[caption] ${id} 命中翻译兜底 ${lang}->zh-Hant`);
-            return tr;
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.log(`[caption] ${id} list 方向异常：${e.message}`);
-  }
-
-  // 方向组3：抓 watch 页抽 captionTracks（应对 timedtext 直连被限）
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-    const wp = await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: YT_HEADERS, signal: controller.signal }).finally(() => clearTimeout(timer));
-    if (wp.ok) {
-      const html = await wp.text();
-      const capMatch = html.match(/"captionTracks":\[[\s\S]{0,10000}?\]/);
-      if (capMatch) {
-        const block = capMatch[0];
-        const urls = [...block.matchAll(/"baseUrl":"([^"]+)"/g)].map(m => JSON.parse(`"${m[1]}"`).replace(/\\u0026/g, '&'));
-        const langs = [...block.matchAll(/"languageCode":"([^"]+)"/g)].map(m => m[1]);
-        if (urls.length) console.log(`[caption] ${id} watch页轨道 ${langs.join(',')}`);
-        for (let i = 0; i < urls.length; i++) {
-          try {
-            const controller2 = new AbortController();
-            const timer2 = setTimeout(() => controller2.abort(), 8000);
-            const r2 = await fetch(urls[i], { headers: YT_HEADERS, signal: controller2.signal }).finally(() => clearTimeout(timer2));
-            if (!r2.ok) continue;
-            const txt = await r2.text();
-            let parts = [...txt.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
-            if (!parts.length) parts = [...txt.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
-            const joined = clean(decode(parts.join(' '))).slice(0, 7000);
-            if (joined.length > 10) {
-              console.log(`[caption] ${id} watch页命中 ${langs[i] || 'unknown'} (${joined.length}字)`);
-              return joined;
-            }
-          } catch {}
-        }
-        // 翻译兜底：对第一条轨道加 tlang
-        if (urls.length) {
-          try {
-            const tUrl = urls[0].includes('?') ? urls[0] + '&tlang=zh-Hant' : urls[0] + '?tlang=zh-Hant';
-            const r3 = await fetch(tUrl, { headers: YT_HEADERS });
-            if (r3.ok) {
-              const txt = await r3.text();
-              let parts = [...txt.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
-              if (!parts.length) parts = [...txt.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(x => x[1].replace(/<[^>]+>/g, ''));
-              const joined = clean(decode(parts.join(' '))).slice(0, 7000);
-              if (joined.length > 10) {
-                console.log(`[caption] ${id} watch页翻译命中 (${joined.length}字)`);
-                return joined;
-              }
-            }
-          } catch {}
-        }
-      }
-    }
-  } catch (e) {
-    console.log(`[caption] ${id} watch页方向异常：${e.message}`);
-  }
-
-  // 方向组4：尝试 innertube 风格的自动字幕（最后兜底，尽力而为）
-  // 若以上均失败，返回空字符串，上层只保留视频标题链接，不再输出“未提供公开中文字幕”提示块
-  return '';
-}
 // ===================== 时效验证：最近 72 小时之内 =====================
 // 规则（见 freshness.mjs / README）：
 //   1) 搜索结果自带相对时间（“3小时前” / “2 days ago”）→ 直接裁决；
@@ -469,9 +319,9 @@ function buildDemoItems() {
       transcript: '00:00 開場\n大家好，今日大市焦點係恒指重返萬八關。\n03:12 內房股集體反彈，碧桂園升幅領先。',
       status: '字幕已读取', bullBear: { bull: 64, bear: 36, note: '偏多：反弹 / 內房 / 恒指', source: 'ai' } }),
     mk({ id: 'demo0000002', hoursAgo: 11, channel: '美投说美股', published: '11 小时前', title: '美聯儲議息紀錄顯示官員分歧擴大 市場押注年內路徑',
-      transcript: '', status: 'AI 多空概率', bullBear: { bull: 47, bear: 53, note: '中性：利率路径分歧', source: 'ai' } }),
+      transcript: '', status: '未读取到字幕（仅标题）', bullBear: { bull: 47, bear: 53, note: '中性：利率路径分歧', source: 'ai' } }),
     mk({ id: 'demo0000003', hoursAgo: 40, channel: 'CNBC', published: '2 天前', title: 'Stocks rally as inflation data cools 美股通胀数据降温带动反弹',
-      transcript: '', status: 'AI 多空概率', bullBear: { bull: 68, bear: 32, note: '偏多：通胀降温 / 反弹', source: 'rule' } }),
+      transcript: '', status: '未读取到字幕（仅标题）', bullBear: { bull: 68, bear: 32, note: '偏多：通胀降温 / 反弹', source: 'rule' } }),
     mk({ id: 'demo0000004', hoursAgo: 100, channel: 'Bloomberg', published: '4 天前', title: '旧闻：四天前的市场综述（应被隐藏）',
       transcript: '旧内容', status: '字幕已读取', bullBear: { bull: 50, bear: 50, note: '中性', source: 'rule' } }),
     mk({ id: 'demo0000005', hoursAgo: 200, channel: 'Reuters', published: '1 周前', title: '旧闻：一周前的市场综述（应被隐藏）',
@@ -573,7 +423,7 @@ async function scan(names, limit = 50) {
  //   · 仍无法验证或已超时 → 判定为过期，直接隐藏，不进入简报（不读字幕、不占 50 条额度）。
  //
  // 异常频道自动多方向重试：searchChannel 内部已尝试 5 个搜索方向 × 2 套 headers × 4 套解析策略；
- // captions 内部已尝试 zh 多变体 × list 发现 × watch 页抽轨道 × 翻译，共 4 组字幕方向。
+ // readCaptions 优先使用 watch 签名轨道，随后 list / 自动字幕兜底；有总超时与失败诊断。
  const now = Date.now();
  const results = [];
  const stale = [];
@@ -598,16 +448,18 @@ async function scan(names, limit = 50) {
      stale.push({ channel: name, title: video.title, url: video.url, reason: fresh.reason || `超出 ${FRESH_WINDOW_LABEL}窗口` });
      continue;
     }
-    const transcript = await captions(video.id);
+    const caption = await readCaptions(video.id);
+    const { text: transcript, ...transcriptInfo } = caption;
+    console.log(`[caption] ${video.id}: ${caption.code} (${transcript.length}字)`);
     const english = isEnglishSource(name);
     const originalTitle = video.title;
     const title = english ? await translateTitleToChinese(originalTitle) : originalTitle;
-    results.push({...video, title, originalTitle: title !== originalTitle ? originalTitle : '', channel:name, transcript,
+    results.push({...video, title, originalTitle: title !== originalTitle ? originalTitle : '', channel:name, transcript, transcriptInfo,
       // 时效字段：发布时间（ISO / 澳门时间文案 / 年龄）供网页与推送展示
       publishedAt: fresh.publishedAt, publishedLabel: fresh.label, publishedMacau: formatMacau(fresh.publishedAt),
       publishedAgeMs: fresh.ageMs, publishedSource: fresh.source, freshWindow: FRESH_WINDOW_LABEL,
-      // 状态徽章：无公开字幕时不再显示“无公开中文字幕”，改由「AI 多空概率」接管（见下方 bullBear）
-      status: transcript ? (english ? '中文翻译字幕' : '字幕已读取') : 'AI 多空概率'});
+      // 状态依据实际读取结果，而不是频道名称或是否生成多空概率。
+      status: caption.status});
     kept++;
    }
    if (!kept) console.log(`[fresh] ${name}：72 小时内无可推送内容，该来源整体隐藏`);
@@ -925,6 +777,10 @@ const server = http.createServer(async (req,res) => {
     return json(res, 200, { ok: true, summaryHtml });
   } catch (e) { json(res, 500, { error: e.message }); }
   return;
+ }
+ if (u.pathname === '/api/push-config' && req.method === 'GET') {
+  res.setHeader('Cache-Control', 'no-store');
+  return json(res, 200, { wechatConfigured: Boolean(process.env.PUSHPLUS_TOKEN?.trim()), channel: 'wechat' });
  }
  if (u.pathname === '/api/push' && req.method === 'POST') {
   try {

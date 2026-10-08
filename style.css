@@ -4,7 +4,7 @@
    - 等宽终端字体（VT323 / JetBrains Mono / Noto Sans SC）
    - DOS 窗口标题栏、命令行提示符 C:\>、块状光标 █
    - 扫描线 + 暗角 + 轻微闪烁，模拟 DOS 时代 CRT 显像管
-   - 全部字体偏小（9px - 13.5px），紧凑高信息密度，微信竖版长页面
+   - 全部字号较上一版减少 2px，间距缩至 75%，紧凑高信息密度，微信竖版长页面
    - 文字色深分五档（标题 / 突出 / 重点 / 正文 / 说明），另留两档装饰层
    ========================================================================== */
 
@@ -64,8 +64,8 @@ body {
     radial-gradient(ellipse at 50% 120%, #0c0b09 0%, transparent 55%);
   color: var(--ink);            /* L3 正文基调：整体偏柔，重点由组件单独提亮 */
   font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 10px;
+  line-height: 1.45;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -88,7 +88,7 @@ a:hover {
 
 /* ============================ DOS 监视器外壳 ============================ */
 .desk {
-  padding: 22px 12px 34px;
+  padding: 16.5px 9px 25.5px;
 }
 
 .monitor {
@@ -97,7 +97,7 @@ a:hover {
   background: linear-gradient(180deg, #2c302b 0%, #1c201c 45%, #121412 100%);
   border: 1px solid #3c413a;
   border-radius: 22px;
-  padding: 12px 14px 16px;
+  padding: 9px 10.5px 12px;
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.55),
     0 2px 0 rgba(255, 255, 255, 0.06) inset,
@@ -109,17 +109,17 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 2px 6px 10px;
+  gap: 6px;
+  padding: 1.5px 4.5px 7.5px;
   color: #9aa396;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 .monitor-brand { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.monitor-lights { display: flex; gap: 6px; align-items: center; }
+.monitor-lights { display: flex; gap: 4.5px; align-items: center; }
 .monitor-knob { color: #6d7568; letter-spacing: 1px; }
 
 .led {
@@ -163,18 +163,18 @@ a:hover {
 .monitor-base {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 6px 2px;
+  gap: 6px;
+  padding: 7.5px 4.5px 1.5px;
 }
 .monitor-badge {
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 6.5px;
   font-weight: 700;
   letter-spacing: 1.5px;
   color: #77806f;
   background: #191c18;
   border: 1px solid #2c312a;
-  padding: 2px 8px;
+  padding: 1.5px 6px;
   border-radius: 2px;
 }
 
@@ -224,7 +224,7 @@ a:hover {
 main {
   max-width: 680px;
   margin: 0 auto;
-  padding: 18px 14px 44px;
+  padding: 13.5px 10.5px 33px;
   position: relative;
 }
 
@@ -240,23 +240,23 @@ main {
 }
 
 .boot-line {
-  margin-top: 10px;
+  margin-top: 7.5px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 400;
   color: var(--ink-dim);
   letter-spacing: 0.8px;
 }
-.footer-boot { margin-top: 10px; }
+.footer-boot { margin-top: 7.5px; }
 
 /* 反白徽章：荧光绿底黑字（DOS 选中条） */
 .hl-badge, .badge-neon {
   background: var(--neon);
   color: var(--black);
-  padding: 1px 6px;
+  padding: 0.75px 4.5px;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 10px;
+  font-size: 8px;
   letter-spacing: 0.5px;
   display: inline-block;
   vertical-align: middle;
@@ -269,15 +269,15 @@ main {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
-  padding: 6px 10px;
+  gap: 3px 6px;
+  padding: 4.5px 7.5px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 9px;
   letter-spacing: 0.5px;
   color: var(--ink-muted);
 }
@@ -285,7 +285,7 @@ main {
 .issue-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: var(--neon);
   min-width: 0;
   word-break: break-all;
@@ -304,7 +304,7 @@ main {
 .issue-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4.5px;
 }
 
 /* ============================ 色深层级工具类 / Contrast Ramp ============================ */
@@ -353,39 +353,39 @@ main {
   border: 1px solid var(--border);
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
-  padding: 12px;
-  margin-bottom: 14px;
+  padding: 9px;
+  margin-bottom: 10.5px;
 }
 
 .panelhead {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   background: var(--neon);
   color: var(--black);
-  margin: -12px -12px 10px;
-  padding: 3px 10px;
+  margin: -9px -9px 7.5px;
+  padding: 2.25px 7.5px;
   font-family: var(--font-mono);
 }
 .panelhead h2 {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 1px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4.5px;
 }
 .panelhead h2 small {
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 700;
   opacity: 0.75;
 }
 .panelhead > small {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 700;
   letter-spacing: 0.5px;
   opacity: 0.78;
@@ -394,22 +394,22 @@ main {
 .icon-tag {
   background: var(--black);
   color: var(--neon);
-  padding: 1px 5px;
+  padding: 0.75px 3.75px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 7.5px;
   font-weight: 700;
 }
 
 .panel-desc {
-  margin: 0 0 10px;
+  margin: 0 0 7.5px;
   font-family: var(--font-sans);
-  font-size: 11px;
-  line-height: 1.75;
+  font-size: 9px;
+  line-height: 1.55;
   color: var(--ink-soft);
 }
 .panel-desc .t-body { display: block; }
-.panel-desc .t-sub { display: block; margin-top: 2px; font-size: 10.5px; }
-.panel-desc .t-key { font-size: 11.5px; }
+.panel-desc .t-sub { display: block; margin-top: 1.5px; font-size: 8.5px; }
+.panel-desc .t-key { font-size: 9.5px; }
 
 /* ============================ 按钮（DOS 按键） ============================ */
 .btn-primary, .btn-secondary, .btn-ghost {
@@ -431,8 +431,8 @@ main {
   color: var(--black);
   border: 2px solid var(--border-light);
   box-shadow: 4px 4px 0 #021406;
-  padding: 10px 12px;
-  font-size: 12.5px;
+  padding: 7.5px 9px;
+  font-size: 10.5px;
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--neon-alt);
@@ -446,13 +446,13 @@ main {
 .btn-secondary {
   display: block;
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
   background: var(--bg-subtle);
   color: var(--neon);
   border: 1px solid var(--border);
   box-shadow: 3px 3px 0 #021406;
-  padding: 8px 12px;
-  font-size: 11.5px;
+  padding: 6px 9px;
+  font-size: 9.5px;
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg-card);
@@ -467,8 +467,8 @@ main {
   background: var(--black);
   color: var(--neon);
   border: 1px solid var(--black);
-  padding: 3px 8px;
-  font-size: 9.5px;
+  padding: 2.25px 6px;
+  font-size: 7.5px;
 }
 .btn-ghost:hover {
   background: var(--bg-subtle);
@@ -476,23 +476,23 @@ main {
 
 /* ============================ 进度条（DOS 内存条） ============================ */
 .meter {
-  margin-top: 10px;
+  margin-top: 7.5px;
 }
 .meter-head {
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 7.5px;
   font-weight: 700;
   letter-spacing: 0.8px;
   color: var(--ink-dim);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 .meter-track {
   height: 12px;
   border: 1px solid var(--border);
   background: var(--bg-subtle);
-  padding: 1px;
+  padding: 0.75px;
   overflow: hidden;
 }
 .meter-track b {
@@ -508,10 +508,10 @@ main {
 .channels {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 5px;
+  gap: 3.75px;
   max-height: 260px;
   overflow: auto;
-  padding: 2px;
+  padding: 1.5px;
 }
 .channels::-webkit-scrollbar { width: 8px; height: 8px; }
 .channels::-webkit-scrollbar-track { background: var(--bg-subtle); }
@@ -520,12 +520,12 @@ main {
 .channel {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3.75px;
   border: 1px solid var(--border-light);
   background: var(--bg-subtle);
-  padding: 3px 7px;
+  padding: 2.25px 5.25px;
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 8.5px;
   color: var(--ink-muted);
   cursor: pointer;
   white-space: nowrap;
@@ -545,11 +545,11 @@ main {
 .input-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid var(--border);
   background: var(--bg-subtle);
-  padding: 6px 10px;
-  margin-top: 4px;
+  padding: 4.5px 7.5px;
+  margin-top: 3px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .input-row:focus-within {
@@ -559,19 +559,19 @@ main {
 .field-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 8.5px;
   font-weight: 700;
   color: var(--ink);
 }
 .input-key {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   color: var(--neon);
   letter-spacing: 0.5px;
 }
 .btn-sub {
-  font-size: 11px;
+  font-size: 9px;
   opacity: 0.72;
   font-weight: 400;
 }
@@ -583,7 +583,7 @@ main {
   outline: none;
   color: var(--ink-title);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 10px;
   letter-spacing: 0.5px;
 }
 .input-row input::placeholder { color: var(--ink-dim); font-weight: 400; }
@@ -599,11 +599,11 @@ main {
 }
 
 .hint {
-  margin: 6px 0 0;
+  margin: 4.5px 0 0;
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: 8px;
   color: var(--ink-muted);
-  line-height: 1.65;
+  line-height: 1.45;
 }
 .hint .t-note { color: var(--ink-note); }
 
@@ -611,13 +611,13 @@ main {
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0;
-  padding: 6px 10px;
+  gap: 4.5px;
+  margin: 7.5px 0;
+  padding: 4.5px 7.5px;
   border: 1px dashed var(--border);
   background: var(--bg-subtle);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   color: var(--ink-dim);
   letter-spacing: 0.5px;
 }
@@ -628,55 +628,55 @@ main {
   border: 1px solid var(--border);
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 9px;
+  margin-bottom: 9px;
 }
 
 .reporthead {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .reporthead h2 {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 9.5px;
   font-weight: 700;
   color: var(--neon);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4.5px;
   letter-spacing: 0.8px;
 }
 
 .stamp {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--black);
   background: var(--neon);
-  padding: 2px 8px;
+  padding: 1.5px 6px;
 }
 
 .empty {
   border: 1px dashed var(--border);
   background: var(--bg-subtle);
-  padding: 26px 14px;
+  padding: 19.5px 10.5px;
   text-align: center;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 10px;
   color: var(--ink-soft);
-  line-height: 1.9;
+  line-height: 1.7;
 }
-.empty-line { display: block; margin-top: 4px; color: var(--ink); }
-.empty-note { display: block; margin-top: 4px; font-size: 10.5px; color: var(--ink-note); line-height: 1.7; }
+.empty-line { display: block; margin-top: 3px; color: var(--ink); }
+.empty-note { display: block; margin-top: 3px; font-size: 8.5px; color: var(--ink-note); line-height: 1.5; }
 .empty-kicker {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--neon);
@@ -687,7 +687,7 @@ main {
   border: 1px solid var(--border);
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
-  margin: 10px 0;
+  margin: 7.5px 0;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .item:hover {
@@ -698,13 +698,13 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px 8px;
+  gap: 4.5px 6px;
   flex-wrap: wrap;
   background: var(--neon);
   color: var(--black);
-  padding: 3px 8px;
+  padding: 2.25px 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -712,14 +712,14 @@ main {
 .item .meta > div:last-child {
   background: var(--black);
   color: var(--ink-soft);
-  padding: 1px 5px;
-  font-size: 9px;
+  padding: 0.75px 3.75px;
+  font-size: 7px;
   font-weight: 400;
 }
 .item .ch-name {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4.5px;
   min-width: 0;
   word-break: break-all;
 }
@@ -730,10 +730,10 @@ main {
 }
 /* 标题 = L1 必读：最亮、最粗、字号最大，并带轻微磷光溢出 */
 .item h3 {
-  margin: 8px 12px 6px;
+  margin: 6px 9px 4.5px;
   font-family: var(--font-sans);
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 11.5px;
+  line-height: 1.35;
   font-weight: 700;
   letter-spacing: 0.2px;
 }
@@ -751,23 +751,23 @@ main {
 }
 /* 字幕摘录 = L3 正文：比标题暗一档、比元数据亮一档 */
 .item .transcript {
-  margin: 8px 12px 12px;
-  padding: 8px 10px;
+  margin: 6px 9px 9px;
+  padding: 6px 7.5px;
   background: var(--bg-subtle);
   border-left: 3px solid var(--border);
   color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 9.5px;
   font-weight: 400;
-  line-height: 1.75;
+  line-height: 1.55;
 }
 /* 字幕里的时间戳（00:00 / 03:12）压成最暗一层，行首时间轴不再抢正文 */
 .item .transcript .ts {
   color: var(--ink-dim);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 400;
 }
 /* 时效徽章（72 小时内已验证） */
@@ -779,8 +779,8 @@ main {
 /* ===== AI 多空概率（取代原「无公开中文字幕」提示） =====
    多 = L2 荧光绿；空 = 琥珀警示色；条形图与文字均等宽终端字体 */
 .item .longshort {
-  margin: 8px 12px 12px;
-  padding: 8px 10px;
+  margin: 6px 9px 9px;
+  padding: 6px 7.5px;
   background: var(--bg-subtle);
   border: 1px solid var(--border-light);
   font-family: var(--font-mono);
@@ -789,30 +789,30 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
+  gap: 4.5px;
   flex-wrap: wrap;
-  font-size: 9px;
+  font-size: 7px;
   letter-spacing: 0.5px;
 }
 .item .longshort .ls-badge {
   background: var(--neon);
   color: var(--black);
-  padding: 1px 5px;
+  padding: 0.75px 3.75px;
   font-weight: 700;
 }
 .item .longshort .ls-tag {
   background: var(--black);
   color: var(--ink-focus);
-  padding: 1px 5px;
+  padding: 0.75px 3.75px;
   font-weight: 700;
 }
 .item .longshort .ls-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-  font-size: 10.5px;
-  line-height: 1.6;
+  gap: 4.5px;
+  margin-top: 3.75px;
+  font-size: 8.5px;
+  line-height: 1.4;
 }
 .item .longshort .ls-row .ls-k { width: 12px; font-weight: 700; }
 .item .longshort .ls-row.bull .ls-k,
@@ -827,19 +827,19 @@ main {
 .item .longshort .ls-row.bull .ls-bar { color: var(--border); }
 .item .longshort .ls-row.bear .ls-bar { color: #6b5210; }
 .item .longshort .ls-note {
-  margin-top: 5px;
+  margin-top: 3.75px;
   color: var(--ink-note);
-  font-size: 9px;
-  line-height: 1.7;
+  font-size: 7px;
+  line-height: 1.5;
 }
 /* 异常条目说明：琥珀色系，正文比标题淡 */
 .item .err-detail { color: var(--amber); }
 .item .err-note {
   display: block;
-  margin-top: 4px;
+  margin-top: 3px;
   color: #8a6a12;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
 }
 .item.error {
   border-color: var(--amber);
@@ -854,28 +854,28 @@ main {
 }
 
 /* ===== Seeking Alpha 新栏目（读取 → 中文解析 → AI 多空概率） ===== */
-.sa-results { margin-top: 10px; }
-.sa-results .item h3 { margin-bottom: 2px; }
+.sa-results { margin-top: 7.5px; }
+.sa-results .item h3 { margin-bottom: 1.5px; }
 /* 英文原题 = 说明色深，退到中文标题之后 */
 .sa-original {
-  margin: 0 12px 8px;
+  margin: 0 9px 6px;
   color: var(--ink-note);
   font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1.6;
+  font-size: 8px;
+  line-height: 1.4;
   word-break: break-all;
 }
 /* 中文解析段 = 正文色深 */
 .sa-summary {
-  margin: 8px 12px 12px;
-  padding: 8px 10px;
+  margin: 6px 9px 9px;
+  padding: 6px 7.5px;
   background: var(--bg-subtle);
   border-left: 3px solid var(--border);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 9.5px;
   font-weight: 400;
-  line-height: 1.75;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -883,7 +883,7 @@ main {
 
 /* ============================ 尾页宣言 ============================ */
 .editorial-footer {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 .footer-card {
   border: 1px solid var(--border);
@@ -894,13 +894,13 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
+  gap: 4.5px;
   flex-wrap: wrap;
   background: var(--neon);
   color: var(--black);
-  padding: 3px 10px;
+  padding: 2.25px 7.5px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 7.5px;
   font-weight: 700;
   letter-spacing: 1px;
 }
@@ -913,20 +913,20 @@ main {
   font-weight: 400;
 }
 .footer-author {
-  padding: 10px 12px 0;
+  padding: 7.5px 9px 0;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--ink-title);
 }
 .footer-body {
-  margin: 8px 12px;
-  padding: 8px 10px;
+  margin: 6px 9px;
+  padding: 6px 7.5px;
   background: var(--bg-subtle);
   border-left: 3px solid var(--neon);
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  line-height: 1.8;
+  font-size: 9.5px;
+  line-height: 1.6;
   color: var(--ink-soft);
   font-weight: 400;
   text-align: justify;
@@ -940,36 +940,36 @@ main {
 .footer-foot {
   display: flex;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4.5px;
   flex-wrap: wrap;
-  margin: 0 12px;
-  padding-top: 8px;
+  margin: 0 9px;
+  padding-top: 6px;
   border-top: 1px dashed var(--border-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 7px;
   color: var(--ink-faint);
   letter-spacing: 0.5px;
 }
 .footer-boot {
-  margin: 8px 12px 12px;
+  margin: 6px 9px 9px;
 }
 
 /* ============================ 响应式 ============================ */
 @media (max-width: 720px) {
-  .desk { padding: 12px 8px 24px; }
-  .monitor { padding: 10px 10px 12px; border-radius: 16px; }
-  .item h3 { font-size: 12.5px; }
+  .desk { padding: 9px 6px 18px; }
+  .monitor { padding: 7.5px 7.5px 9px; border-radius: 16px; }
+  .item h3 { font-size: 10.5px; }
 }
 
 @media (max-width: 520px) {
   .channels { grid-template-columns: 1fr 1fr; max-height: 220px; }
-  .top-issue-bar { font-size: 9px; }
+  .top-issue-bar { font-size: 7px; }
   .monitor-knob { display: none; }
 }
 
 @media (max-width: 380px) {
   .channels { grid-template-columns: 1fr; }
-  .item h3 { font-size: 12px; }
+  .item h3 { font-size: 10px; }
 }
 
 /* ============================ 动效减弱 ============================ */
@@ -983,3 +983,15 @@ main {
   .cursor, .dot-neon, .empty-kicker::after { animation: none; opacity: 1; }
   *, *::before, *::after { transition-duration: 0.001ms !important; }
 }
+
+/* 默认微信开关：字号继承紧凑正文，保留完整可点击标签。 */
+.auto-push-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7.5px;
+  min-height: 28px;
+  color: var(--ink-focus);
+  cursor: pointer;
+}
+.auto-push-option input { margin: 0; accent-color: var(--neon); flex-shrink: 0; }

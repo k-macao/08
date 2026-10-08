@@ -179,49 +179,49 @@ export function renderSeekingAlphaPush(items = []) {
   const cards = list.map((x, i) => {
     const bb = normalizeProbability(x.bullBear) ? x.bullBear : null;
     const ls = bb ? `
-        <div style="margin-top:8px;padding:8px 10px;background:#031203;border:1px solid #0d9b4c;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:'Courier New',Consolas,monospace;font-size:9px;flex-wrap:wrap;">
-            <span style="background:#00ff66;color:#041404;padding:1px 5px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
-            <span style="background:#041404;color:#b8f2cb;padding:1px 5px;font-weight:700;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
+        <div style="margin-top:6px;padding:6px 7.5px;background:#031203;border:1px solid #0d9b4c;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:4.5px;font-family:'Courier New',Consolas,monospace;font-size:7px;flex-wrap:wrap;">
+            <span style="background:#00ff66;color:#041404;padding:0.75px 3.75px;font-weight:700;letter-spacing:0.5px;">AI 多空概率</span>
+            <span style="background:#041404;color:#b8f2cb;padding:0.75px 3.75px;font-weight:700;">多 ${bb.bull}% / 空 ${bb.bear}%</span>
           </div>
-          <div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;white-space:pre-wrap;">多 ${lsBarPush(bb.bull)} ${bb.bull}%
+          <div style="margin-top:4.5px;font-family:'Courier New',Consolas,monospace;font-size:8.5px;color:#b8f2cb;font-weight:700;line-height:1.7;word-break:break-all;white-space:pre-wrap;">多 ${lsBarPush(bb.bull)} ${bb.bull}%
 空 ${lsBarPush(bb.bear)} ${bb.bear}%</div>
-          <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#63b47f;line-height:1.7;">${esc(bb.note || '')} · 模型：${esc(bb.source === 'ai' ? 'DeepSeek 多空推理' : '本地规则推算（未配置 AI Key）')} · 仅供研究参考，不构成投资建议</div>
+          <div style="margin-top:3px;font-family:'Courier New',Consolas,monospace;font-size:7px;color:#63b47f;line-height:1.5;">${esc(bb.note || '')} · 模型：${esc(bb.source === 'ai' ? 'DeepSeek 多空推理' : '本地规则推算（未配置 AI Key）')} · 仅供研究参考，不构成投资建议</div>
         </div>` : '';
     return `
-    <section style="margin:10px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 6px rgba(0,255,102,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;min-width:0;word-break:break-all;">
-          <span style="background:#041404;color:#00ff66;padding:1px 5px;font-weight:400;">SA#${i + 1}</span>
+    <section style="margin:7.5px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 6px rgba(0,255,102,0.15);font-family:'Courier New',Consolas,'SimSun',monospace;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4.5px;background:#00ff66;color:#041404;padding:2.25px 6px;font-family:'Courier New',Consolas,monospace;font-size:8px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:4.5px;min-width:0;word-break:break-all;">
+          <span style="background:#041404;color:#00ff66;padding:0.75px 3.75px;font-weight:400;">SA#${i + 1}</span>
           <span>SA ▸ ${esc(x.ticker || 'MARKET')}</span>
         </div>
-        <span style="background:#041404;color:#8fdca4;padding:1px 5px;flex-shrink:0;font-weight:400;">${esc(x.status || '中文解析')}</span>
+        <span style="background:#041404;color:#8fdca4;padding:0.75px 3.75px;flex-shrink:0;font-weight:400;">${esc(x.status || '中文解析')}</span>
       </div>
-      <div style="padding:10px 12px;">
-        <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:9.5px;letter-spacing:0.5px;font-weight:400;">C:\\SA\\LOGS&gt; ${esc(x.publishedLabel || '')}${x.publishedMacau ? ' · ' + esc(x.publishedMacau) : ''}${x.author ? ' · ' + esc(x.author) : ''} · 时效验证 ✓ ${FRESH_WINDOW_LABEL}内</div>
-        <h3 style="margin:6px 0 2px;">
-          <a href="${esc(x.url)}" style="color:#eafff0;font-weight:700;font-size:13.5px;line-height:1.55;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
+      <div style="padding:7.5px 9px;">
+        <div style="color:#2c6742;font-family:'Courier New',Consolas,monospace;font-size:7.5px;letter-spacing:0.5px;font-weight:400;">C:\\SA\\LOGS&gt; ${esc(x.publishedLabel || '')}${x.publishedMacau ? ' · ' + esc(x.publishedMacau) : ''}${x.author ? ' · ' + esc(x.author) : ''} · 时效验证 ✓ ${FRESH_WINDOW_LABEL}内</div>
+        <h3 style="margin:4.5px 0 1.5px;">
+          <a href="${esc(x.url)}" style="color:#eafff0;font-weight:700;font-size:11.5px;line-height:1.35;text-decoration:underline;text-decoration-color:#3f8f5b;text-underline-offset:3px;word-break:break-all;">&gt; ${esc(x.title)}</a>
         </h3>
-        ${x.originalTitle ? `<div style="margin:0 0 8px;color:#63b47f;font-family:'Courier New',Consolas,monospace;font-size:10px;line-height:1.6;word-break:break-all;">EN ▸ ${esc(x.originalTitle)}</div>` : ''}
-        ${x.summaryZh ? `<div style="margin-top:8px;padding:8px 10px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.75;font-weight:400;">${esc(x.summaryZh)}</div>` : ''}
+        ${x.originalTitle ? `<div style="margin:0 0 6px;color:#63b47f;font-family:'Courier New',Consolas,monospace;font-size:8px;line-height:1.4;word-break:break-all;">EN ▸ ${esc(x.originalTitle)}</div>` : ''}
+        ${x.summaryZh ? `<div style="margin-top:6px;padding:6px 7.5px;background:#031203;border-left:3px solid #0d9b4c;color:#8fdca4;white-space:pre-wrap;word-break:break-word;font-size:9.5px;line-height:1.55;font-weight:400;">${esc(x.summaryZh)}</div>` : ''}
         ${ls}
       </div>
     </section>`;
   }).join('');
   const agg = aggregateLongShort(list);
   const head = `
-    <section style="margin:12px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:'Courier New',Consolas,'SimSun',monospace;">
-      <div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:'Courier New',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="background:#041404;color:#00ff66;padding:1px 5px;">■</span>
+    <section style="margin:9px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:'Courier New',Consolas,'SimSun',monospace;">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:2.25px 6px;font-family:'Courier New',Consolas,monospace;font-size:8px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:3px;">
+        <div style="display:flex;align-items:center;gap:4.5px;">
+          <span style="background:#041404;color:#00ff66;padding:0.75px 3.75px;">■</span>
           <span>C:\\SA\\LATEST.EXE</span>
         </div>
-        <span style="background:#041404;color:#00ff66;padding:1px 6px;">SEEKING ALPHA · 最新分析 · ${list.length} 条</span>
+        <span style="background:#041404;color:#00ff66;padding:0.75px 4.5px;">SEEKING ALPHA · 最新分析 · ${list.length} 条</span>
       </div>
-      <div style="padding:8px 12px;">
-        <div style="font-family:'Courier New',Consolas,monospace;font-size:10px;color:#00ff66;font-weight:700;letter-spacing:1px;">▌GLOBAL ANALYSIS / 全球分析精选</div>
-        ${agg ? `<div style="margin-top:6px;font-family:'Courier New',Consolas,monospace;font-size:10.5px;font-weight:700;color:#b8f2cb;">SA 全景：${bullBearBar(agg, 8)} <span style="color:#63b47f;font-weight:400;">· ${esc(probabilitySourceText(agg.source))}</span></div>` : ''}
-        <div style="margin-top:4px;font-family:'Courier New',Consolas,monospace;font-size:9px;color:#63b47f;">来源：seekingalpha.com/latest-articles · 英文原文已逐条解析为中文 · 仅供研究参考，不构成投资建议</div>
+      <div style="padding:6px 9px;">
+        <div style="font-family:'Courier New',Consolas,monospace;font-size:8px;color:#00ff66;font-weight:700;letter-spacing:1px;">▌GLOBAL ANALYSIS / 全球分析精选</div>
+        ${agg ? `<div style="margin-top:4.5px;font-family:'Courier New',Consolas,monospace;font-size:8.5px;font-weight:700;color:#b8f2cb;">SA 全景：${bullBearBar(agg, 8)} <span style="color:#63b47f;font-weight:400;">· ${esc(probabilitySourceText(agg.source))}</span></div>` : ''}
+        <div style="margin-top:3px;font-family:'Courier New',Consolas,monospace;font-size:7px;color:#63b47f;">来源：seekingalpha.com/latest-articles · 英文原文已逐条解析为中文 · 仅供研究参考，不构成投资建议</div>
       </div>
     </section>`;
   return head + cards;

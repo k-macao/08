@@ -15,6 +15,7 @@
 import argparse
 import difflib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -40,11 +41,11 @@ def download_video(url, workdir):
     out_tpl = os.path.join(workdir, "video.%(ext)s")
     cmd = cmd_base + ["-f", "best[height<=720]/best", "-o", out_tpl, "--no-playlist", url]
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, stdout=sys.stderr)
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         sys.exit(f"下载视频失败（需要 yt-dlp）：{e}")
     for name in os.listdir(workdir):
-        if name.startswith("video."):
+        if name.startswith("video.") and not name.endswith((".part", ".ytdl")):
             return os.path.join(workdir, name)
     sys.exit("下载完成但未找到视频文件")
 
@@ -102,7 +103,7 @@ def merge_segments(frame_texts, interval):
         if not lines:
             continue
         text = "\n".join(lines)
-        if segments and similar(segments[-1]["text"], text):
+        if segments and abs(segments[-1]["end"] - t) < 1e-6 and similar(segments[-1]["text"], text):
             segments[-1]["end"] = t + interval
             continue
         segments.append({"start": t, "end": t + interval, "text": text})
@@ -138,11 +139,16 @@ def main():
     ap.add_argument("--interval", type=float, default=2.0, help="抽帧间隔（秒），默认 2")
     ap.add_argument("--min-score", type=float, default=0.6, help="OCR 置信度下限，默认 0.6")
     args = ap.parse_args()
+    if not math.isfinite(args.interval) or args.interval <= 0:
+        ap.error("--interval 必须是大于 0 的有限秒数")
+    if not math.isfinite(args.min_score) or not 0 <= args.min_score <= 1:
+        ap.error("--min-score 必须在 0 到 1 之间")
 
     try:
         from rapidocr_onnxruntime import RapidOCR
-    except ImportError:
-        sys.exit("缺少依赖：pip install -r tools/requirements-video-ocr.txt")
+    except ImportError as exc:
+        sys.exit(f"OCR 依赖无法加载：{exc}\n请执行 bash tools/setup_video_ocr.sh，"
+                 "再用 .venv/bin/python 运行本工具（修复缺少依赖 / libGL / OpenCV 冲突）。")
 
     ffmpeg = find_ffmpeg()
     with tempfile.TemporaryDirectory(prefix="video_ocr_") as tmp:

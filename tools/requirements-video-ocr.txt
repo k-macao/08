@@ -1,5 +1,6 @@
-rapidocr_onnxruntime
-opencv-python-headless
+# 无桌面服务器请用 bash tools/setup_video_ocr.sh，消除间接引入的 GUI OpenCV 冲突。
+rapidocr_onnxruntime>=1.4.4,<2
+opencv-python-headless>=4.8,<5
 imageio-ffmpeg
 # 可选：处理视频链接
 yt-dlp

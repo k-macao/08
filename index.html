@@ -77,7 +77,7 @@
           <button class="btn-secondary" id="runflows">
             <span>⚡</span> [F5] 触发 GitHub Actions 流水线
           </button>
-          <div id="flowsstate" class="meter" style="display:none;margin-top:6px;">
+          <div id="flowsstate" class="meter" style="display:none;margin-top:4.5px;">
             <div class="meter-head">
               <span>流水线状态</span>
               <strong id="flowsmsg">等待触发</strong>
@@ -89,7 +89,7 @@
         <section class="section-panel">
           <div class="panelhead">
             <h2><span class="icon-tag">03</span> 推送发射台</h2>
-            <small>PushPlus 微信公众号 · 09:00 / 17:00 AUTO</small>
+            <small>默认微信 · 扫描后自动推送 · 09:00 / 17:00</small>
           </div>
 
           <div>
@@ -98,7 +98,7 @@
             </label>
             <div class="input-row">
               <span class="input-key">KEY ▸</span>
-              <input id="token" type="password" placeholder="粘贴你的 PushPlus Token">
+              <input id="token" type="password" placeholder="粘贴 Token；服务端已配置时可留空">
               <span class="input-light"></span>
             </div>
             <p class="hint">
@@ -107,13 +107,19 @@
             </p>
           </div>
 
+          <label class="auto-push-option" for="auto-push-wechat">
+            <input id="auto-push-wechat" type="checkbox" checked>
+            <span>扫描完成后自动推送微信 <span class="t-note">（默认开启，可取消）</span></span>
+          </label>
+          <p class="hint">有有效情报且已配置 Token 才发送；载入示例不会自动推送。</p>
+
           <div class="push-meta-bar">
             <span>PACKET: <b id="packetCount">0</b> 条情报</span>
             <span>STATUS: <b id="pushStatus">STANDBY</b></span>
           </div>
 
           <button class="btn-primary" id="push" disabled>
-            <span>📤</span> [F10] 推送当前全景简报 → 微信
+            <span>📤</span> [F10] 手动推送当前简报 → 微信
           </button>
         </section>
 
