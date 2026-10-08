@@ -440,6 +440,48 @@ async function verifyFreshness(video, now = Date.now()) {
   return evaluateFreshness({ published: video.published, publishedAt: iso }, now);
 }
 
+// ===================== 演示数据（离线预览用） =====================
+// 用途：本地/沙箱无外网（无法访问 YouTube）时，仍可在网页中查看「72 小时时效验证」与
+//       「AI 多空概率」的完整排版效果 —— 数据为示例，不参与真实扫描与推送统计口径。
+function buildDemoItems() {
+  const now = Date.now();
+  const mk = (o) => {
+    const ageMs = o.hoursAgo * 3600 * 1000;
+    const publishedAt = new Date(now - ageMs).toISOString();
+    return {
+      ...o,
+      url: 'https://www.youtube.com/watch?v=' + o.id,
+      publishedAt,
+      publishedLabel: o.published,
+      publishedMacau: formatMacau(publishedAt),
+      publishedAgeMs: ageMs,
+      publishedSource: 'relative',
+      freshWindow: FRESH_WINDOW_LABEL,
+      channel: o.channel
+    };
+  };
+  const candidates = [
+    mk({ id: 'demo0000001', hoursAgo: 3, channel: '信報財經新聞', published: '3 小时前', title: '港股午後跌幅收窄 恒指重上18000點 內房板塊反彈',
+      transcript: '00:00 開場\n大家好，今日大市焦點係恒指重返萬八關。\n03:12 內房股集體反彈，碧桂園升幅領先。',
+      status: '字幕已读取', bullBear: { bull: 64, bear: 36, note: '偏多：反弹 / 內房 / 恒指', source: 'ai' } }),
+    mk({ id: 'demo0000002', hoursAgo: 11, channel: '美投说美股', published: '11 小时前', title: '美聯儲議息紀錄顯示官員分歧擴大 市場押注年內路徑',
+      transcript: '', status: 'AI 多空概率', bullBear: { bull: 47, bear: 53, note: '中性：利率路径分歧', source: 'ai' } }),
+    mk({ id: 'demo0000003', hoursAgo: 40, channel: 'CNBC', published: '2 天前', title: 'Stocks rally as inflation data cools 美股通胀数据降温带动反弹',
+      transcript: '', status: 'AI 多空概率', bullBear: { bull: 68, bear: 32, note: '偏多：通胀降温 / 反弹', source: 'rule' } }),
+    mk({ id: 'demo0000004', hoursAgo: 100, channel: 'Bloomberg', published: '4 天前', title: '旧闻：四天前的市场综述（应被隐藏）',
+      transcript: '旧内容', status: '字幕已读取', bullBear: { bull: 50, bear: 50, note: '中性', source: 'rule' } }),
+    mk({ id: 'demo0000005', hoursAgo: 200, channel: 'Reuters', published: '1 周前', title: '旧闻：一周前的市场综述（应被隐藏）',
+      transcript: '旧内容', status: '字幕已读取', bullBear: { bull: 50, bear: 50, note: '中性', source: 'rule' } })
+  ];
+  const items = [], hidden = [];
+  for (const x of candidates) {
+    const fresh = evaluateFreshness(x, now);
+    if (fresh.ok) items.push(x);
+    else hidden.push({ channel: x.channel, title: x.title, url: x.url, reason: fresh.reason || `超出 ${FRESH_WINDOW_LABEL}窗口` });
+  }
+  return { items, hidden };
+}
+
 async function runFlows(token) {
   const repo = process.env.GITHUB_REPO || 'k-macao/08';
   const ref = process.env.GITHUB_REF || 'main';
@@ -768,6 +810,18 @@ const server = http.createServer(async (req,res) => {
      fetchedAt: new Date().toISOString()
    });
   } catch(e){json(res,500,{error:e.message});} return;
+ }
+ if (u.pathname === '/api/demo' && (req.method === 'POST' || req.method === 'GET')) {
+  // 离线演示数据：与本页排版、时效验证、AI 多空概率完全同构，便于无外网时预览效果
+  const demo = buildDemoItems();
+  return json(res, 200, {
+    items: demo.items,
+    hiddenCount: demo.hidden.length,
+    hidden: demo.hidden,
+    freshWindow: FRESH_WINDOW_LABEL,
+    demo: true,
+    fetchedAt: new Date().toISOString()
+  });
  }
  if (u.pathname === '/api/run-flows' && req.method === 'POST') {
   try { const body=await new Promise((ok,bad)=>{let s='';req.on('data',x=>s+=x);req.on('end',()=>{try{ok(JSON.parse(s||'{}'))}catch(e){bad(e)}})});

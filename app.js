@@ -267,6 +267,34 @@ document.querySelector('#scan').onclick = async () => {
   }
 };
 
+// 离线示例数据：无需外网即可查看「72 小时时效验证 + AI 多空概率」的完整排版
+document.querySelector('#demo').onclick = async () => {
+  const b = document.querySelector('#demo'), p = document.querySelector('#progress'), pt = document.querySelector('#progress-text');
+  b.disabled = true;
+  try {
+    const r = await fetch('/api/demo');
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error || ('HTTP ' + r.status));
+    last = d.items || [];
+    render(last);
+    const stamp = document.querySelector('#stamp');
+    const freshCount = freshOnly(last).length;
+    if (stamp) stamp.textContent = 'DEMO · ' + freshCount + ' ITEMS' + (d.hiddenCount ? ' · 已隐藏 ' + d.hiddenCount + ' 条超出 ' + FRESH_WINDOW_LABEL : '') + ' · 示例数据';
+    setPushStatus('DEMO · ' + freshCount + ' PACKETS');
+    const stateEl = document.querySelector('#state');
+    if (stateEl) stateEl.textContent = `示例数据已载入（${freshCount} 条 · 隐藏 ${d.hiddenCount || 0} 条超出 ${FRESH_WINDOW_LABEL}）`;
+    if (p) { p.style.width = '100%'; if (pt) pt.textContent = '100%'; }
+    const pushBtn = document.querySelector('#push');
+    if (pushBtn) pushBtn.disabled = false;
+    updatePushMeta();
+  } catch (e) {
+    alert('载入示例数据失败：' + e.message);
+  } finally {
+    b.disabled = false;
+    setTimeout(() => { if (p) p.style.width = '0%'; if (pt) pt.textContent = '0%'; }, 1200);
+  }
+};
+
 document.querySelector('#runflows').onclick = async () => {
   const b = document.querySelector('#runflows'), msg = document.querySelector('#flowsmsg'), fs = document.querySelector('#flowsstate');
   b.disabled = true;
