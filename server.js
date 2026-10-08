@@ -441,6 +441,25 @@ async function buildSummaryHtml(items) {
 }
 
 /**
+ * 不推个股页：剥离简报中任何按个股拆分的板块/页面。
+ * 约定的个股页标记（任一命中即整段 <section> 剥除）：
+ *   1) <section data-kind="stock-page" ...>
+ *   2) <section class="... stock-page ...">
+ *   3) 段内徽标文本：>个股页< / >個股頁< / >STOCK PAGE<
+ * 保证推送内容只保留全景汇总（AI 总结 + 情报流 + 尾页），绝不带个股页。
+ */
+function stripStockSections(html) {
+  if (!html) return html;
+  let out = String(html);
+  out = out.replace(/<section\b[^>]*data-kind=(["'])stock-page\1[^>]*>[\s\S]*?<\/section>/gi, '');
+  out = out.replace(/<section\b[^>]*class=(["'])[^"']*\bstock-page\b[^"']*\1[^>]*>[\s\S]*?<\/section>/gi, '');
+  // 徽标文本精确命中（仅匹配独立徽标 >个股页<，不误伤标题含“个股”的视频条目）
+  out = out.replace(/<section\b[^>]*>[\s\S]*?<\/section>/gi, (m) =>
+    /&gt;\s*(个股页|個股頁|STOCK PAGE)\s*<|>(个股页|個股頁|STOCK PAGE)</.test(m) ? '' : m);
+  return out;
+}
+
+/**
  * PushPlus 单条消息内容上限约 10 万字（100,000 字符）。
  * 为留余量，按 90,000 字节切分。
  */
@@ -541,6 +560,8 @@ function splitHtmlBySections(html, maxChars = PUSHPLUS_MAX_CHARS) {
 async function pushWechat({ token, title, content, template = 'html', channel = 'wechat' }) {
   if (!token) throw new Error('缺少 PushPlus token');
   if (!content) throw new Error('缺少推送内容');
+  // 不推个股页：发送前统一剥离个股板块/个股页，只推全景汇总
+  content = stripStockSections(content);
   const baseTitle = title || '章鱼 AI 全景分析';
 
   // 提取外层 header / footer（<section> 之外的固定内容），保证每条消息都有标题和免责声明
