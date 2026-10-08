@@ -317,63 +317,63 @@ export function renderSummaryHtml(summary, meta = {}) {
   const lsBar = ls ? bullBearBar(ls, 16) : '';
 
   const li = (arr, badgeText = '::') => (arr && arr.length)
-    ? `<ul style="margin:6px 0 0 0;padding:0;list-style:none;font-family:'Courier New',Consolas,'SimSun',monospace;">${arr.map(x => `
-        <li style="margin:4px 0;padding:5px 8px;background:#031203;border-left:3px solid #0d9b4c;color:#b8f2cb;font-weight:700;font-size:11.5px;line-height:1.7;">
-          <span style="color:#00ff66;font-weight:700;margin-right:6px;">${esc(badgeText)}</span>${esc(x)}
+    ? `<ul style="margin:4.5px 0 0 0;padding:0;list-style:none;font-family:'Courier New',Consolas,'SimSun',monospace;">${arr.map(x => `
+        <li style="margin:3px 0;padding:3.75px 6px;background:#031203;border-left:3px solid #0d9b4c;color:#b8f2cb;font-weight:700;font-size:9.5px;line-height:1.5;">
+          <span style="color:#00ff66;font-weight:700;margin-right:4.5px;">${esc(badgeText)}</span>${esc(x)}
         </li>`).join('')}</ul>`
-    : '<p style="margin:6px 0 0;color:#63b47f;font-size:10.5px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
+    : '<p style="margin:4.5px 0 0;color:#63b47f;font-size:8.5px;font-family:\'Courier New\',Consolas,monospace;">（无相关要点）</p>';
 
   return [
-    '<section style="margin:12px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:\'Courier New\',Consolas,\'SimSun\',monospace;">',
+    '<section style="margin:9px 0;border:1px solid #0d9b4c;background:#072007;box-shadow:0 0 8px rgba(0,255,102,0.18);font-family:\'Courier New\',Consolas,\'SimSun\',monospace;">',
       // ── DOS 窗口标题栏 ──
-      '<div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:3px 8px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:4px;">',
-        '<div style="display:flex;align-items:center;gap:6px;">',
-          '<span style="background:#041404;color:#00ff66;padding:1px 5px;">■</span>',
+      '<div style="display:flex;justify-content:space-between;align-items:center;background:#00ff66;color:#041404;padding:2.25px 6px;font-family:\'Courier New\',Consolas,monospace;font-size:8px;font-weight:700;letter-spacing:1px;flex-wrap:wrap;gap:3px;">',
+        '<div style="display:flex;align-items:center;gap:4.5px;">',
+          '<span style="background:#041404;color:#00ff66;padding:0.75px 3.75px;">■</span>',
           '<span>C:\\AI\\SUMMARY.EXE</span>',
         '</div>',
-        `<span style="background:#041404;color:#00ff66;padding:1px 6px;">AI SUMMARY · 基于 ${itemCount} 条情报</span>`,
+        `<span style="background:#041404;color:#00ff66;padding:0.75px 4.5px;">AI SUMMARY · 基于 ${itemCount} 条情报</span>`,
       '</div>',
-      '<div style="padding:10px 12px;">',
+      '<div style="padding:7.5px 9px;">',
         // ── 今日主线：黑屏看板 ──
-        '<div style="background:#031203;border:1px solid #0d9b4c;padding:10px 12px;margin-bottom:10px;">',
-          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#00ff66;font-weight:700;letter-spacing:1px;margin-bottom:6px;">',
+        '<div style="background:#031203;border:1px solid #0d9b4c;padding:7.5px 9px;margin-bottom:7.5px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:8px;color:#00ff66;font-weight:700;letter-spacing:1px;margin-bottom:4.5px;">',
             '▌TODAY MAIN QUEST / 今日主线',
           '</div>',
-          `<p style="margin:0;color:#eafff0;font-weight:700;line-height:1.85;white-space:pre-wrap;word-break:break-word;font-size:12px;">${esc(summary.main)}</p>`,
-          '<div style="margin-top:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10px;color:#2c6742;">C:\\&gt; MAIN.TXT █</div>',
+          `<p style="margin:0;color:#eafff0;font-weight:700;line-height:1.65;white-space:pre-wrap;word-break:break-word;font-size:10px;">${esc(summary.main)}</p>`,
+          '<div style="margin-top:4.5px;font-family:\'Courier New\',Consolas,monospace;font-size:8px;color:#2c6742;">C:\\&gt; MAIN.TXT █</div>',
         '</div>',
         // ── 全景多空概率（AI 多空概率汇总） ──
         ls ? (
-          '<div style="margin-top:10px;background:#031203;border:1px solid #0d9b4c;padding:8px 10px;">' +
-            '<div style="display:flex;align-items:center;gap:6px;font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;letter-spacing:0.5px;margin-bottom:6px;">' +
-              '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">L/S</span>' +
+          '<div style="margin-top:7.5px;background:#031203;border:1px solid #0d9b4c;padding:6px 7.5px;">' +
+            '<div style="display:flex;align-items:center;gap:4.5px;font-family:\'Courier New\',Consolas,monospace;font-size:8.5px;font-weight:700;color:#00ff66;letter-spacing:0.5px;margin-bottom:4.5px;">' +
+              '<span style="background:#00ff66;color:#041404;padding:0.75px 3.75px;font-size:7px;">L/S</span>' +
               '<span>&gt; AI 多空概率</span>' +
-              '<span style="margin-left:auto;background:#041404;color:#b8f2cb;padding:1px 5px;font-size:9px;font-weight:700;">多 ' + ls.bull + '% / 空 ' + ls.bear + '%</span>' +
+              '<span style="margin-left:auto;background:#041404;color:#b8f2cb;padding:0.75px 3.75px;font-size:7px;font-weight:700;">多 ' + ls.bull + '% / 空 ' + ls.bear + '%</span>' +
             '</div>' +
-            '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;color:#b8f2cb;font-weight:700;line-height:1.9;word-break:break-all;">' + esc(lsBar) + '</div>' +
-            '<div style="margin-top:4px;font-family:\'Courier New\',Consolas,monospace;font-size:9px;color:#63b47f;">基于 ' + Number(meta.longShort.count || itemCount) + ' 条内容 · ' + esc(lsSource) + ' · 仅供研究参考，不构成投资建议</div>' +
+            '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:8.5px;color:#b8f2cb;font-weight:700;line-height:1.7;word-break:break-all;">' + esc(lsBar) + '</div>' +
+            '<div style="margin-top:3px;font-family:\'Courier New\',Consolas,monospace;font-size:7px;color:#63b47f;">基于 ' + Number(meta.longShort.count || itemCount) + ' 条内容 · ' + esc(lsSource) + ' · 仅供研究参考，不构成投资建议</div>' +
           '</div>'
         ) : '',
         // ── 热点 ──
-        '<div style="margin-top:10px;">',
-          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',
-            '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">HOT</span>',
+        '<div style="margin-top:7.5px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:8.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:4.5px;letter-spacing:0.5px;">',
+            '<span style="background:#00ff66;color:#041404;padding:0.75px 3.75px;font-size:7px;">HOT</span>',
             '<span>&gt; 热点话题 · HOT_TOPICS.DAT</span>',
           '</div>',
           li(summary.hotTopics, '*'),
         '</div>',
         // ── 风险 ──
-        '<div style="margin-top:10px;">',
-          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#ffb000;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',
-            '<span style="background:#ffb000;color:#041404;padding:1px 5px;font-size:9px;">RISK</span>',
+        '<div style="margin-top:7.5px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:8.5px;font-weight:700;color:#ffb000;display:flex;align-items:center;gap:4.5px;letter-spacing:0.5px;">',
+            '<span style="background:#ffb000;color:#041404;padding:0.75px 3.75px;font-size:7px;">RISK</span>',
             '<span>&gt; 风险点 · RISKS.DAT</span>',
           '</div>',
           li(summary.risks, '!'),
         '</div>',
         // ── 机会 ──
-        '<div style="margin-top:10px;">',
-          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:10.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">',
-            '<span style="background:#00ff66;color:#041404;padding:1px 5px;font-size:9px;">OPS</span>',
+        '<div style="margin-top:7.5px;">',
+          '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:8.5px;font-weight:700;color:#00ff66;display:flex;align-items:center;gap:4.5px;letter-spacing:0.5px;">',
+            '<span style="background:#00ff66;color:#041404;padding:0.75px 3.75px;font-size:7px;">OPS</span>',
             '<span>&gt; 机会点 · OPPORTUNITIES.DAT</span>',
           '</div>',
           li(summary.opportunities, '+'),

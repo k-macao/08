@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+node_modules/
+# 本地视频、OCR 中间文件和结果请放在此目录，不提交大文件。
+.video-work/

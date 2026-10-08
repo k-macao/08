@@ -147,8 +147,8 @@ t('五档色深：标题 / 突出 / 重点 / 正文 / 说明 互不相同', () =
   );
   assert.match(html, /color:#eafff0[^>]*>主线结论/);            // 标题：今日主线最亮
   assert.match(html, /background:#00ff66/);                     // 突出：反白徽章 / 标题栏
-  assert.match(html, /color:#b8f2cb;font-weight:700;font-size:11.5px/); // 重点：要点列表
-  assert.match(html, /color:#b8f2cb;font-weight:700;line-height:1.9/);  // 重点：多空概率数值
+  assert.match(html, /color:#b8f2cb;font-weight:700;font-size:9.5px/); // 重点：要点列表
+  assert.match(html, /color:#b8f2cb;font-weight:700;line-height:1.7/);  // 重点：多空概率数值
   assert.match(html, /color:#63b47f/);                          // 说明：来源与免责
 });
 
