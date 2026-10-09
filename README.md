@@ -126,6 +126,22 @@ npm start     # 启动服务
 - **微信推送**：独立推送块（DOS 窗口 `C:\SA\LATEST.EXE`）插在 AI 总结之后；**仅真实读取成功时附加**，绝不把示例数据当真实情报推送；定时工作流推送同样附带该栏目。
 - 合规口径与全文一致：仅供研究参考，不构成投资建议。
 
+## 标题词频 · 板块归类（sectors.mjs）
+
+- **用途**：把一批内容标题喂给 `sectors.mjs`，统计**高频词**（中英文混合分词：中文 bigram + 英文单词，繁体标题先转简体，行情/情绪类噪音词整词挖除），并按**板块关键词词典**归类**股票板块热度**（按覆盖标题数去重排序，结果可核对、可离线运行）。
+- **AI 增强（可选）**：配置 `DEEPSEEK_API_KEY` / `OPENAI_API_KEY` 后，由大模型基于「高频词 + 标题样本」输出 **AI 板块研判主线**（严格 JSON，含主线 / 板块权重 / 高频词解读）；无 Key 或调用失败自动降级本地规则并如实标注，绝不伪造 AI 结果。
+- **用法**：
+
+  ```bash
+  node sectors.mjs --demo                 # 内置示例标题跑一遍（Seeking Alpha 示例 + 频道风格示例）
+  node sectors.mjs titles.txt             # 文件读取（每行一条，# 开头为注释；也支持 JSON 数组）
+  cat titles.txt | node sectors.mjs       # 标准输入
+  # 选项：--top <N>（默认 20） --out <简报.md> --no-ai --json
+  ```
+
+- **输出**：终端条形图报告 + 可选 Markdown 简报（`--out`）；两者都固定附免责声明。
+- **合规**：只做板块层面热度归类，输出统一净除 目标价 / 买入评级 / 卖出评级 / 个股推荐；公司/商品名只作为板块信号词，不出个股建议。测试见 `test/sectors.test.mjs`（含无 AI Key 时的降级回归）。
+
 ## 注意事项与规范
 
 - 频道清单包含原有中文财经频道及新增的 **70 个英文新闻／社交媒体内容源（新增 20 个 Reddit／moomoo 来源）**（如 Bloomberg、CNBC、Reuters、Reddit、Stocktwits、X、LinkedIn）
